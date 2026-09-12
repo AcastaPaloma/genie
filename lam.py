@@ -41,12 +41,11 @@ class LAMDecoder(nn.Module):
     def __init__(self, patch=8, img=64, channels=1, d_width=256, code_width=32, T=16, st_heads=8, st_blocks=6):
         super().__init__()
         self.patch, self.img, self.channels, self.d_width = patch, img, channels, d_width
-        self.patch = patch
         patch_dim = patch * patch * channels
         self.n_patches = (img // patch) ** 2 
         self.patch_proj   = nn.Linear(patch_dim, d_width)
-        self.spatial_pos  = nn.Parameter(torch.zeros(self.n_patches, d_width))
-        self.temporal_pos = nn.Parameter(torch.zeros(T, d_width))
+        self.spatial_pos  = nn.Parameter(torch.randn(self.n_patches, d_width) * 0.02)
+        self.temporal_pos = nn.Parameter(torch.randn(T, d_width) * 0.02)
         self.blocks = nn.ModuleList([
                     SpatioTemporalTransformerBlock(embedding_dim=d_width, num_heads=st_heads)
                     for _ in range(st_blocks)
@@ -71,7 +70,6 @@ class LAMDecoder(nn.Module):
         for block in self.blocks:
                     x = block(x)  # [16, 15, 64, 256]  shape unchanged
         
-        # STEP 5 — pool away the patch axis
         x = self.to_pixels(x)  # [16, 15, 64, 256]  →  [16, 15, 64, 64]
 
         x = x.reshape(B, T, H // p, W // p, C, p, p)   # [16,15,8,8,1,8,8]
