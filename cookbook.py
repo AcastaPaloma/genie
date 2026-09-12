@@ -3,7 +3,7 @@ from torch import nn
 import torch.nn.functional as F
 
 class Cookbook(nn.Module):
-    def __init__(self, K=8, code_width=32, beta=0.25):
+    def __init__(self, K=1024, code_width=32, beta=0.25):
         super().__init__()
         self.K, self.code_width, self.beta = K, code_width, beta
         self.cookbook = nn.Embedding(K, code_width)
