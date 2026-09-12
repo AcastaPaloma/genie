@@ -1,6 +1,8 @@
 import torch
 from torch import nn
 from transformer import SpatioTemporalTransformerBlock
+from torch.nn import functional as F
+from cookbook import Cookbook
 
 class LAMEncoder(nn.Module):
     def __init__(self, patch=8, img=64, channels=1, d_width=256, code_width=32, T=16, st_blocks=6, st_heads=8):
@@ -35,7 +37,6 @@ class LAMEncoder(nn.Module):
         # STEP 6 — down to code width
         x = self.to_code(x)                          # [B, T, 32]
         return x
-
 
 class LAMDecoder(nn.Module):
     def __init__(self, patch=8, img=64, channels=1, d_width=256, code_width=32, T=16, st_heads=8, st_blocks=6):
@@ -77,3 +78,30 @@ class LAMDecoder(nn.Module):
         x = x.reshape(B, T, C, H, W)                   # [16,15,1,64,64]
 
         return x
+
+class LAM(nn.Module):
+    def __init__(self, K=8, code_width=32, d_width=256, T=16, channels=1):
+        super().__init__()
+        self.encoder  = LAMEncoder(code_width=code_width, d_width=d_width,
+                                T=T, channels=channels)
+        self.cookbook = Cookbook(K=K, code_width=code_width)
+        self.decoder  = LAMDecoder(code_width=code_width, d_width=d_width,
+                                T=T, channels=channels)
+
+    def forward(self, video):
+        z = self.encoder(video) # z    [16, 16, 32]     one 32-number vector per frame
+        actions = z[:, 1:]
+        z_q, idx, vq_loss = self.cookbook(actions) 
+        past    = video[:, :-1]                        # frames 0..T-2
+        target  = video[:, 1:]                         # frames 1..T-1
+
+        pred = self.decoder(past, z_q)             # [B, T-1, C, 64, 64] predicted frames 1–14
+
+        recon = F.mse_loss(pred, target)
+        return pred, idx, recon + vq_loss, recon, vq_loss
+
+    def train():
+        pass
+
+
+    
