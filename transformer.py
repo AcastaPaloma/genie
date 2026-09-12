@@ -8,6 +8,9 @@ location.
 """
 
 from __future__ import annotations
+from typing import Literal, overload
+
+import torch
 from torch import Tensor, nn
 
 
@@ -59,6 +62,13 @@ class SelfAttention(nn.Module):
 
         self.q_proj = nn.Linear(embedding_dim, self.attention_dim, bias=bias)
         self.k_proj = nn.Linear(embedding_dim, self.attention_dim, bias=bias)
+        self.v_proj = nn.Linear(embedding_dim, self.attention_dim, bias=bias)
+        self.out_proj = nn.Linear(self.attention_dim, embedding_dim, bias=bias)
+        self.attention_dropout = nn.Dropout(attention_dropout)
+        self.projection_dropout = nn.Dropout(projection_dropout)
+
+    @overload
+    def forward(
         self,
         x: Tensor,
         *,

@@ -1,0 +1,4 @@
+array-record>=0.8.3
+huggingface-hub>=0.30
+numpy>=1.26
+torch>=2.7
