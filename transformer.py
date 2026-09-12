@@ -1,164 +1,170 @@
+"""Reusable spatiotemporal-transformer building blocks.
+
+The classes here operate on token embeddings, rather than pixels or discrete
+code IDs. Component-specific modules (a video tokenizer, a latent-action
+model, or a dynamics model) are responsible for producing those embeddings
+and for adding positional or action conditioning.
+"""
+
+from __future__ import annotations
+
+from typing import Literal, overload
+
 import torch
-import torch.nn as nn
+from torch import Tensor, nn
 
 
-class Transformer(nn.Module):
-    def __init__(self):
+class SpatialSelfAttention(nn.Module):
+    """Multi-head self-attention over locations within each video frame.
+
+    Each frame attends over its own spatial locations only. The time axis is
+    kept independent, which makes this module usable as the spatial part of a
+    factorized spatiotemporal transformer.
+
+    Accepted inputs are either a token sequence ``(B, T, N, D)`` or a spatial
+    grid ``(B, T, H, W, D)``. The output has exactly the same shape as the
+    input. This module intentionally does not add positional embeddings,
+    normalization, residual connections, or a feed-forward network; those are
+    responsibilities of the surrounding transformer block.
+
+    Args:
+        embedding_dim: Token width ``D``.
+        num_heads: Number of independent attention heads.
+        head_dim: Query/key/value width per head. Defaults to
+            ``embedding_dim // num_heads``.
+        bias: Whether linear projections include biases.
+        attention_dropout: Dropout probability applied to normalized attention
+            weights.
+        projection_dropout: Dropout probability applied after the output
+            projection.
+    """
+
+    def __init__(
+        self,
+        embedding_dim: int,
+        num_heads: int,
+        *,
+        head_dim: int | None = None,
+        bias: bool = True,
+        attention_dropout: float = 0.0,
+        projection_dropout: float = 0.0,
+    ) -> None:
         super().__init__()
 
-        # Video and patch configuration.
-        self.frame_height = 64
-        self.frame_width = 64
-        self.channels = 3
-        self.patch_height = 16
-        self.patch_width = 16
-        self.embedding_dim = 128
-
-        # A 64 x 64 frame contains a 4 x 4 grid of 16 x 16 patches.
-        self.patches_per_frame = 16
-        self.patch_dim = 16 * 16 * 3  # 768 RGB values per patch
-
-        # Turns each flattened image patch into one 128-D token.
-        self.proj = nn.Linear(768, 128)
-
-        # One learnable spatial position embedding for each of the 16 patches.
-        # It broadcasts across both the batch and time dimensions.
-        self.p_space = nn.Parameter(torch.zeros(1, 1, 16, 128))
-
-        # Eight attention heads split the 128-D embedding into 8 x 16-D heads.
-        self.queries1 = nn.Linear(128, 16)
-        self.keys1 = nn.Linear(128, 16)
-        self.values1 = nn.Linear(128, 16)
-
-        self.queries2 = nn.Linear(128, 16)
-        self.keys2 = nn.Linear(128, 16)
-        self.values2 = nn.Linear(128, 16)
-
-        self.queries3 = nn.Linear(128, 16)
-        self.keys3 = nn.Linear(128, 16)
-        self.values3 = nn.Linear(128, 16)
-
-        self.queries4 = nn.Linear(128, 16)
-        self.keys4 = nn.Linear(128, 16)
-        self.values4 = nn.Linear(128, 16)
-
-        self.queries5 = nn.Linear(128, 16)
-        self.keys5 = nn.Linear(128, 16)
-        self.values5 = nn.Linear(128, 16)
-
-        self.queries6 = nn.Linear(128, 16)
-        self.keys6 = nn.Linear(128, 16)
-        self.values6 = nn.Linear(128, 16)
-
-        self.queries7 = nn.Linear(128, 16)
-        self.keys7 = nn.Linear(128, 16)
-        self.values7 = nn.Linear(128, 16)
-
-        self.queries8 = nn.Linear(128, 16)
-        self.keys8 = nn.Linear(128, 16)
-        self.values8 = nn.Linear(128, 16)
-
-        # Mixing attention heads
-        self.output_mix = nn.Linear(128, 128)
-
-    def forward(self, x):
-        """Patchify RGB videos shaped (batch, frames, 3, 64, 64).
-
-        Returns spatially-positioned patch embeddings shaped
-        (batch, frames, 16, 128).
-        """
-        def embed():
-            batch_size, num_frames, channels, height, width = x.shape
-            if (channels, height, width) != (3, 64, 64):
+        if embedding_dim <= 0:
+            raise ValueError("embedding_dim must be positive")
+        if num_heads <= 0:
+            raise ValueError("num_heads must be positive")
+        if head_dim is None:
+            if embedding_dim % num_heads:
                 raise ValueError(
-                    "Expected x with shape (batch, frames, 3, 64, 64), "
-                    f"but received {tuple(x.shape)}."
+                    "embedding_dim must be divisible by num_heads when head_dim is omitted"
                 )
+            head_dim = embedding_dim // num_heads
+        if head_dim <= 0:
+            raise ValueError("head_dim must be positive")
+        if not 0.0 <= attention_dropout < 1.0:
+            raise ValueError("attention_dropout must be in [0, 1)")
+        if not 0.0 <= projection_dropout < 1.0:
+            raise ValueError("projection_dropout must be in [0, 1)")
 
-            # (B, T, 3, 64, 64) -> (B, T, 16, 768)
-            x = x.reshape(batch_size, num_frames, 3, 4, 16, 4, 16)
-            x = x.permute(0, 1, 3, 5, 2, 4, 6)
-            x = x.reshape(batch_size, num_frames, 16, 768)
+        self.embedding_dim = embedding_dim
+        self.num_heads = num_heads
+        self.head_dim = head_dim
+        self.attention_dim = num_heads * head_dim
+        self.scale = head_dim**-0.5
 
-            # (B, T, 16, 768) -> (B, T, 16, 128)
-            X = self.proj(x) + self.p_space
-            return X
+        self.q_proj = nn.Linear(embedding_dim, self.attention_dim, bias=bias)
+        self.k_proj = nn.Linear(embedding_dim, self.attention_dim, bias=bias)
+        self.v_proj = nn.Linear(embedding_dim, self.attention_dim, bias=bias)
+        self.out_proj = nn.Linear(self.attention_dim, embedding_dim, bias=bias)
+        self.attention_dropout = nn.Dropout(attention_dropout)
+        self.projection_dropout = nn.Dropout(projection_dropout)
 
-        frames_embedding = embed()
+    @overload
+    def forward(
+        self,
+        x: Tensor,
+        *,
+        return_attention: Literal[False] = False,
+    ) -> Tensor: ...
 
-        qs1 = self.queries1(frames_embedding)
-        ks1 = self.keys1(frames_embedding)
-        vs1 = self.values1(frames_embedding)
+    @overload
+    def forward(
+        self,
+        x: Tensor,
+        *,
+        return_attention: Literal[True],
+    ) -> tuple[Tensor, Tensor]: ...
 
-        qs2 = self.queries2(frames_embedding)
-        ks2 = self.keys2(frames_embedding)
-        vs2 = self.values2(frames_embedding)
+    def forward(
+        self,
+        x: Tensor,
+        *,
+        return_attention: bool = False,
+    ) -> Tensor | tuple[Tensor, Tensor]:
+        """Apply spatial self-attention.
 
-        qs3 = self.queries3(frames_embedding)
-        ks3 = self.keys3(frames_embedding)
-        vs3 = self.values3(frames_embedding)
+        Args:
+            x: Float token embeddings of shape ``(B, T, N, D)`` or
+                ``(B, T, H, W, D)``.
+            return_attention: Return the pre-dropout attention weights with
+                shape ``(B, T, num_heads, N, N)`` for inspection.
+        """
+        sequence, original_layout = self._to_sequence(x)
+        batch, frames, locations, _ = sequence.shape
 
-        qs4 = self.queries4(frames_embedding)
-        ks4 = self.keys4(frames_embedding)
-        vs4 = self.values4(frames_embedding)
+        q = self._split_heads(self.q_proj(sequence))
+        k = self._split_heads(self.k_proj(sequence))
+        v = self._split_heads(self.v_proj(sequence))
 
-        qs5 = self.queries5(frames_embedding)
-        ks5 = self.keys5(frames_embedding)
-        vs5 = self.values5(frames_embedding)
+        # (B, T, heads, N, head_dim) @ (B, T, heads, head_dim, N)
+        # gives one N-by-N spatial attention map per frame and per head.
+        attention = torch.matmul(q, k.transpose(-2, -1)) * self.scale
+        attention = torch.softmax(attention, dim=-1)
+        attention_for_return = attention
+        attention = self.attention_dropout(attention)
 
-        qs6 = self.queries6(frames_embedding)
-        ks6 = self.keys6(frames_embedding)
-        vs6 = self.values6(frames_embedding)
+        attended = torch.matmul(attention, v)
+        attended = attended.transpose(2, 3).reshape(
+            batch, frames, locations, self.attention_dim
+        )
+        output = self.projection_dropout(self.out_proj(attended))
+        output = self._restore_layout(output, original_layout)
 
-        qs7 = self.queries7(frames_embedding)
-        ks7 = self.keys7(frames_embedding)
-        vs7 = self.values7(frames_embedding)
+        if return_attention:
+            return output, attention_for_return
+        return output
 
-        qs8 = self.queries8(frames_embedding)
-        ks8 = self.keys8(frames_embedding)
-        vs8 = self.values8(frames_embedding)
+    def _split_heads(self, x: Tensor) -> Tensor:
+        """Convert ``(B, T, N, H*d_h)`` to ``(B, T, H, N, d_h)``."""
+        batch, frames, locations, _ = x.shape
+        return x.reshape(
+            batch, frames, locations, self.num_heads, self.head_dim
+        ).transpose(2, 3)
 
-        am1 = torch.bmm(qs1, ks1.transpose(1, 2))
-        am1 = am1 / (128 ** 0.5)
-        am1 = torch.softmax(am1, dim=-1)
-        tk1 = torch.bmm(am1, vs1)
+    def _to_sequence(self, x: Tensor) -> tuple[Tensor, tuple[int, int] | None]:
+        if not x.is_floating_point():
+            raise TypeError("x must contain floating-point token embeddings")
+        if x.shape[-1] != self.embedding_dim:
+            raise ValueError(
+                f"Expected embedding dimension {self.embedding_dim}, got {x.shape[-1]}"
+            )
 
-        am2 = torch.bmm(qs2, ks2.transpose(1, 2))
-        am2 = am2 / (128 ** 0.5)
-        am2 = torch.softmax(am2, dim=-1)
-        tk2 = torch.bmm(am2, vs2)
+        if x.ndim == 4:
+            return x, None
+        if x.ndim == 5:
+            batch, frames, height, width, embedding = x.shape
+            return x.reshape(batch, frames, height * width, embedding), (height, width)
+        raise ValueError(
+            "Expected x with shape (B, T, N, D) or (B, T, H, W, D), "
+            f"got {tuple(x.shape)}"
+        )
 
-        am3 = torch.bmm(qs3, ks3.transpose(1, 2))
-        am3 = am3 / (128 ** 0.5)
-        am3 = torch.softmax(am3, dim=-1)
-        tk3 = torch.bmm(am3, vs3)
-
-        am4 = torch.bmm(qs4, ks4.transpose(1, 2))
-        am4 = am4 / (128 ** 0.5)
-        am4 = torch.softmax(am4, dim=-1)
-        tk4 = torch.bmm(am4, vs4)
-
-        am5 = torch.bmm(qs5, ks5.transpose(1, 2))
-        am5 = am5 / (128 ** 0.5)
-        am5 = torch.softmax(am5, dim=-1)
-        tk5 = torch.bmm(am5, vs5)
-
-        am6 = torch.bmm(qs6, ks6.transpose(1, 2))
-        am6 = am6 / (128 ** 0.5)
-        am6 = torch.softmax(am6, dim=-1)
-        tk6 = torch.bmm(am6, vs6)
-
-        am7 = torch.bmm(qs7, ks7.transpose(1, 2))
-        am7 = am7 / (128 ** 0.5)
-        am7 = torch.softmax(am7, dim=-1)
-        tk7 = torch.bmm(am7, vs7)
-
-        am8 = torch.bmm(qs8, ks8.transpose(1, 2))
-        am8 = am8 / (128 ** 0.5)
-        am8 = torch.softmax(am8, dim=-1)
-        tk8 = torch.bmm(am8, vs8)
-
-        # Ready for residual attention
-        corr_tokens = self.output_mix(torch.cat((tk1, tk2, tk3, tk4, tk5, tk6, tk7, tk8), dim=-1))
-
-        
+    @staticmethod
+    def _restore_layout(x: Tensor, layout: tuple[int, int] | None) -> Tensor:
+        if layout is None:
+            return x
+        batch, frames, _, embedding = x.shape
+        height, width = layout
+        return x.reshape(batch, frames, height, width, embedding)
