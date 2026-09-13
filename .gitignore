@@ -1,3 +1,7 @@
 .venv
 __pycache__/
 data/
+
+# Local datasets and rendered videos
+*.array_record
+*.mp4
