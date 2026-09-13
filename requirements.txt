@@ -1,17 +1,4 @@
-# genie3 — latent action model / dynamics model on Atari Breakout
-# Developed on Python 3.12.  Install with:  pip install -r requirements.txt
-
-# core
+# Genie 1 model components for DOOM video. Python 3.12.
 torch>=2.7
 numpy>=1.26
-
-# dataset: p-doom/atari-breakout-dataset is shipped as ArrayRecord shards.
-# array-record is the reader dataloader.open_records() falls back to.
-array-record>=0.8.3
-
-# optional: preferred reader in dataloader.open_records(); uncomment to use
-# grain instead of array-record (dataloader falls back automatically if absent).
-# grain>=0.2.10
-
-# provides the CLI used to download the dataset (see dataloader.py docstring)
-huggingface-hub>=0.30
+Pillow>=10.0

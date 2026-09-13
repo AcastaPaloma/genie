@@ -12,6 +12,7 @@ from typing import Literal, overload
 
 import torch
 from torch import Tensor, nn
+from torch.nn import functional as F
 
 
 class SelfAttention(nn.Module):
@@ -44,6 +45,7 @@ class SelfAttention(nn.Module):
         bias: bool = True,
         attention_dropout: float = 0.0,
         projection_dropout: float = 0.0,
+        qk_norm: bool = False,
     ) -> None:
         super().__init__()
         _validate_attention_config(
@@ -66,6 +68,10 @@ class SelfAttention(nn.Module):
         self.out_proj = nn.Linear(self.attention_dim, embedding_dim, bias=bias)
         self.attention_dropout = nn.Dropout(attention_dropout)
         self.projection_dropout = nn.Dropout(projection_dropout)
+        # Genie reports QK normalization, but not its exact implementation.
+        # Use per-head LayerNorm on Q/K, retaining scaled dot-product attention.
+        self.q_norm = nn.LayerNorm(self.head_dim) if qk_norm else nn.Identity()
+        self.k_norm = nn.LayerNorm(self.head_dim) if qk_norm else nn.Identity()
 
     @overload
     def forward(
@@ -109,13 +115,48 @@ class SelfAttention(nn.Module):
         self._validate_input(x)
         sequence_length = x.shape[-2]
 
-        q = self._split_heads(self.q_proj(x))
-        k = self._split_heads(self.k_proj(x))
+        q = self.q_norm(self._split_heads(self.q_proj(x)))
+        k = self.k_norm(self._split_heads(self.k_proj(x)))
         v = self._split_heads(self.v_proj(x))
+
+        if not return_attention:
+            # Flatten leading batch axes so CUDA SDPA can select fused kernels.
+            # This preserves model capacity while avoiding materialized NxN maps.
+            leading = q.shape[:-3]
+            q, k, v = (a.reshape(-1, self.num_heads, sequence_length, self.head_dim)
+                       for a in (q, k, v))
+            mask = None
+            causal = is_causal
+            if attention_mask is not None:
+                if attention_mask.ndim < 2 or attention_mask.shape[-2:] != (sequence_length, sequence_length):
+                    raise ValueError("attention_mask must end with (L, L)")
+                if attention_mask.dtype != torch.bool and not attention_mask.is_floating_point():
+                    raise TypeError("attention_mask must be boolean or floating-point")
+                mask = attention_mask.to(device=x.device)
+                if mask.dtype == torch.bool:
+                    # Public interface True=blocked; SDPA True=allowed.
+                    mask = ~mask
+                    if is_causal:
+                        mask = mask & ~self._causal_mask(sequence_length, x.device)
+                else:
+                    mask = mask.to(dtype=q.dtype)
+                    if is_causal:
+                        mask = mask.masked_fill(self._causal_mask(sequence_length, x.device), float("-inf"))
+                mask = torch.broadcast_to(mask, (*leading, self.num_heads, sequence_length, sequence_length))
+                mask = mask.reshape(-1, self.num_heads, sequence_length, sequence_length)
+                causal = False
+            attended = F.scaled_dot_product_attention(
+                q, k, v, attn_mask=mask, is_causal=causal,
+                dropout_p=self.attention_dropout.p if self.training else 0.0,
+            )
+            attended = attended.reshape(*leading, self.num_heads, sequence_length, self.head_dim)
+            attended = attended.transpose(-3, -2).reshape(*x.shape[:-2], sequence_length, self.attention_dim)
+            return self.projection_dropout(self.out_proj(attended))
 
         logits = torch.matmul(q, k.transpose(-2, -1)) * self.scale
         logits = self._apply_masks(logits, attention_mask, is_causal)
-        attention = torch.softmax(logits, dim=-1)
+        attention = torch.softmax(logits.float(), dim=-1).to(v.dtype)
+        attention = torch.nan_to_num(attention)  # All-blocked rows have no update.
         attention_for_return = attention
         attention = self.attention_dropout(attention)
 
@@ -161,7 +202,7 @@ class SelfAttention(nn.Module):
         if is_causal:
             logits = logits.masked_fill(
                 self._causal_mask(logits.shape[-1], logits.device),
-                torch.finfo(logits.dtype).min,
+                float("-inf"),
             )
 
         if attention_mask is None:
@@ -172,7 +213,7 @@ class SelfAttention(nn.Module):
                 f"got {tuple(attention_mask.shape)} for logits {tuple(logits.shape)}"
             )
         if attention_mask.dtype == torch.bool:
-            return logits.masked_fill(attention_mask.to(device=logits.device), torch.finfo(logits.dtype).min)
+            return logits.masked_fill(attention_mask.to(device=logits.device), float("-inf"))
         if not attention_mask.is_floating_point():
             raise TypeError("attention_mask must be boolean or floating-point")
         return logits + attention_mask.to(device=logits.device, dtype=logits.dtype)
@@ -235,6 +276,7 @@ class SpatioTemporalTransformerBlock(nn.Module):
         attention_dropout: float = 0.0,
         projection_dropout: float = 0.0,
         ffn_dropout: float = 0.0,
+        qk_norm: bool = False,
     ) -> None:
         super().__init__()
         attention_kwargs = {
@@ -242,6 +284,7 @@ class SpatioTemporalTransformerBlock(nn.Module):
             "bias": bias,
             "attention_dropout": attention_dropout,
             "projection_dropout": projection_dropout,
+            "qk_norm": qk_norm,
         }
 
         self.embedding_dim = embedding_dim

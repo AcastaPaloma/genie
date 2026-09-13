@@ -1,140 +1,126 @@
-"""
-LAM data pipeline for p-doom/atari-breakout-dataset.
+"""DOOM video clips for both Genie encoders: float32 (B,T,H,W,3) in [0,1].
 
-One-time preprocessing (ArrayRecord -> .npy), then a Dataset that yields
-contiguous 16-frame clips that never cross an episode boundary.
-
-Download first:
-    huggingface-cli download --repo-type dataset \
-        p-doom/atari-breakout-dataset --local-dir ./breakout
+Supply frames.npy (uint8 NHWC RGB frames) and episodes.npy (start,length rows)
+under data/doom. Each episode must have a constant source FPS; pass source_fps
+when it differs from 10. Never place a clip across deaths/resets/scene cuts.
+This loader does not download data or assume that Atari recordings are DOOM.
 """
 
-import glob
-import os
-import pickle
+from pathlib import Path
 
 import numpy as np
 import torch
-import torch.nn.functional as F
+from torch.nn import functional as F
 from torch.utils.data import Dataset, DataLoader
 
-# ── config ────────────────────────────────────────────────────────────────
-RAW_DIR    = "./breakout/train"
-FRAMES_NPY = "frames.npy"
-EPS_NPY    = "episodes.npy"
+from config import (CONTENT_SIZE, IMAGE_SIZE, SEQUENCE_LENGTH, FPS,
+                    DYNAMICS_TRAINING)
 
-N_SHARDS   = 20        # ~2000 episodes. the full 10M frames is ~70GB decompressed.
-SRC_SIZE   = 84        # native resolution
-DST_SIZE   = 64        # 84 doesn't divide by patch 8; 64 does
-T          = 16        # frames per clip
-BATCH      = 16
+FRAMES_NPY = "data/doom/frames.npy"
+EPS_NPY = "data/doom/episodes.npy"
+T = SEQUENCE_LENGTH
+BATCH = DYNAMICS_TRAINING.global_batch_size
 
 
-# ── reading ArrayRecord ───────────────────────────────────────────────────
-def open_records(paths):
-    """grain is what Jasmine uses; array_record is the lighter fallback."""
-    try:
-        import grain
-        return grain.sources.ArrayRecordDataSource(paths)
-    except ImportError:
-        from array_record.python.array_record_data_source import ArrayRecordDataSource
-        return ArrayRecordDataSource(paths)
+def prepare_video(frames, *, layout="THWC", content_size=CONTENT_SIZE,
+                  image_size=IMAGE_SIZE):
+    """Resize to 160x90, replicate-pad bottom to 96, return normalized RGB.
+
+    layout must be explicit for legacy channels-first arrays. Padding and area
+    resizing are implementation choices. The source frame rate is handled by
+    ClipDataset, not by this spatial preprocessing function.
+    """
+    if layout not in ("THWC", "TCHW"):
+        raise ValueError("layout must be THWC or TCHW")
+    x = torch.as_tensor(np.array(frames, copy=True))
+    if x.ndim != 4 or x.dtype != torch.uint8:
+        raise ValueError("Expected uint8 video (T,H,W,C) or (T,C,H,W)")
+    if layout == "THWC":
+        x = x.permute(0, 3, 1, 2)
+    if x.shape[1] == 1:
+        x = x.expand(-1, 3, -1, -1)
+    elif x.shape[1] != 3:
+        raise ValueError("Expected one or three input channels")
+    h, w = image_size
+    ch, cw = content_size
+    if min(h, w, ch, cw) <= 0 or h < ch or w < cw:
+        raise ValueError("Image size must contain the positive content size")
+    x = F.interpolate(x.float() / 255.0, size=content_size, mode="area")
+    x = F.pad(x, (0, w - cw, 0, h - ch), mode="replicate")
+    return x.permute(0, 2, 3, 1).contiguous()
 
 
-def preprocess(raw_dir=RAW_DIR, n_shards=N_SHARDS):
-    """ArrayRecord -> (frames [N,C,64,64] uint8, episodes [n_eps,2])."""
-    paths = sorted(glob.glob(os.path.join(raw_dir, "*.array_record")))[:n_shards]
-    if not paths:
-        raise FileNotFoundError(f"no .array_record files under {raw_dir}")
-    print(f"reading {len(paths)} shards")
-
-    source = open_records(paths)
-    frames_out, episodes, cursor, channels = [], [], 0, None
-
-    for i in range(len(source)):
-        el = pickle.loads(source[i])
-        n  = el["sequence_length"]
-
-        # derive C from the buffer length instead of assuming grayscale
-        c = len(el["raw_video"]) // (n * SRC_SIZE * SRC_SIZE)
-        if channels is None:
-            channels = c
-            print(f"detected {c} channel(s) -> patch_dim will be {8*8*c}")
-        assert c == channels, f"channel count changed: {channels} -> {c}"
-
-        ep = np.frombuffer(el["raw_video"], dtype=np.uint8)
-        ep = ep.reshape(n, SRC_SIZE, SRC_SIZE, c).copy()      # frombuffer is read-only
-
-        t = torch.from_numpy(ep).permute(0, 3, 1, 2).float()  # [n, C, 84, 84]
-        t = F.interpolate(t, size=(DST_SIZE, DST_SIZE), mode="area")
-        t = t.round().clamp(0, 255).to(torch.uint8)           # [n, C, 64, 64]
-
-        frames_out.append(t.numpy())
-        episodes.append((cursor, n))
-        cursor += n
-
-        if (i + 1) % 200 == 0:
-            print(f"  {i+1}/{len(source)} episodes, {cursor} frames")
-
-    frames   = np.concatenate(frames_out, axis=0)
-    episodes = np.array(episodes, dtype=np.int64)
-
-    np.save(FRAMES_NPY, frames)
-    np.save(EPS_NPY, episodes)
-    print(f"saved {frames.shape} ({frames.nbytes/1e9:.2f} GB), "
-          f"{len(episodes)} episodes")
-    return frames, episodes
-
-
-# ── dataset ───────────────────────────────────────────────────────────────
 class ClipDataset(Dataset):
-    """Contiguous T-frame clips. Every window lies inside a single episode."""
+    """Sample T frames at 10 FPS within each episode, without boundary crossing."""
 
-    def __init__(self, frames, episodes, T=T):
-        self.frames, self.T = frames, T
-
-        starts = []
-        for ep_start, ep_len in episodes:
-            if ep_len >= T:                       # skip episodes too short to slice
-                starts.extend(range(ep_start, ep_start + ep_len - T + 1))
-        self.starts = np.array(starts, dtype=np.int64)
+    def __init__(self, frames, episodes, T=T, *, source_fps=FPS, layout="THWC",
+                 content_size=CONTENT_SIZE, image_size=IMAGE_SIZE):
+        if T < 1 or not np.isfinite(source_fps) or source_fps < FPS:
+            raise ValueError("T must be positive and source_fps must be at least 10")
+        if layout not in ("THWC", "TCHW"):
+            raise ValueError("layout must be THWC or TCHW")
+        if frames.ndim != 4 or frames.dtype != np.uint8:
+            raise ValueError("frames must be a 4-D uint8 array")
+        episodes = np.asarray(episodes)
+        if episodes.ndim != 2 or episodes.shape[1] != 2 or not np.issubdtype(episodes.dtype, np.integer):
+            raise ValueError("episodes must contain integer (start,length) rows")
+        self.frames, self.T, self.layout = frames, T, layout
+        self.content_size, self.image_size = content_size, image_size
+        self.offsets = np.floor(np.arange(T) * source_fps / FPS).astype(np.int64)
+        span = int(self.offsets[-1]) + 1
+        starts, counts = [], []
+        previous_end = 0
+        for start, length in episodes:
+            if start < previous_end or length < 1 or start + length > len(frames):
+                raise ValueError("Episodes must be sorted, nonoverlapping, positive and in bounds")
+            previous_end = int(start + length)
+            count = max(0, int(length) - span + 1)
+            if count:
+                starts.append(start)
+                counts.append(count)
+        # Prefix sums avoid storing one Python integer for every video window.
+        self.episode_starts = np.asarray(starts, dtype=np.int64)
+        self.cumulative_counts = np.cumsum(counts, dtype=np.int64)
 
     def __len__(self):
-        return len(self.starts)
+        return int(self.cumulative_counts[-1]) if len(self.cumulative_counts) else 0
 
     def __getitem__(self, i):
-        s = self.starts[i]
-        clip = self.frames[s : s + self.T]                    # [T, C, 64, 64] uint8
-        return torch.from_numpy(clip.copy()).float().div_(255.0)
+        if i < 0:
+            i += len(self)
+        if not 0 <= i < len(self):
+            raise IndexError(i)
+        episode = np.searchsorted(self.cumulative_counts, i, side="right")
+        previous = self.cumulative_counts[episode - 1] if episode else 0
+        start = self.episode_starts[episode] + i - previous
+        return prepare_video(self.frames[start + self.offsets], layout=self.layout,
+                             content_size=self.content_size, image_size=self.image_size)
 
 
-def build_loader(batch_size=BATCH, num_workers=4):
-    if not (os.path.exists(FRAMES_NPY) and os.path.exists(EPS_NPY)):
-        preprocess()
-    frames   = np.load(FRAMES_NPY)
-    episodes = np.load(EPS_NPY)
+def build_loader(batch_size=BATCH, num_workers=4, *, frames_path=FRAMES_NPY,
+                 episodes_path=EPS_NPY, source_fps=FPS, layout="THWC", T=T,
+                 drop_last=True):
+    """batch_size is local to this loader; distributed callers set microbatch size.
 
-    ds = ClipDataset(frames, episodes)
+    Paper global batch = local microbatch * world size * accumulation steps.
+    No hardware-dependent model downsizing is performed here.
+    """
+    for path in (frames_path, episodes_path):
+        if not Path(path).is_file():
+            raise FileNotFoundError(f"Supply DOOM data at {path}; see HYPERPARAMETERS.md")
+    frames = np.load(frames_path, mmap_mode="r", allow_pickle=False)
+    episodes = np.load(episodes_path, allow_pickle=False)
+    ds = ClipDataset(frames, episodes, T=T, source_fps=source_fps, layout=layout)
+    if not len(ds):
+        raise ValueError("No episodes are long enough for a complete clip")
     loader = DataLoader(ds, batch_size=batch_size, shuffle=True,
-                        num_workers=num_workers, pin_memory=True, drop_last=True)
+                        num_workers=num_workers, pin_memory=torch.cuda.is_available(),
+                        drop_last=drop_last)
     return ds, loader
 
 
-# ── sanity check ──────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    ds, loader = build_loader()
-
-    print(f"\nframes:   {ds.frames.shape}  {ds.frames.dtype}")
-    print(f"windows:  {len(ds):,}")
-
+    # Inspect one clip; this is not a change to the global training batch.
+    dataset, loader = build_loader(batch_size=1, num_workers=0, drop_last=False)
     clip = next(iter(loader))
-    print(f"batch:    {tuple(clip.shape)}  {clip.dtype}")
-    print(f"range:    [{clip.min():.3f}, {clip.max():.3f}]")
-
-    # every window must sit inside one episode
-    bounds = {int(s): int(s + l) for s, l in np.load(EPS_NPY)}
-    ends = sorted(bounds.values())
-    for s in ds.starts[:10000]:
-        nxt = ends[np.searchsorted(ends, s, side="right")]
-        assert s + T <= nxt, f"window at {s} crosses an episode boundary"
-    print("boundary check passed")
+    print(f"{len(dataset)} windows; batch {tuple(clip.shape)}; {clip.dtype}")

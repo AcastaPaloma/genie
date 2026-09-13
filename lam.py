@@ -82,6 +82,7 @@ class LAMDecoder(nn.Module):
 class LAM(nn.Module):
     def __init__(self, K=8, code_width=32, d_width=256, T=16, channels=1):
         super().__init__()
+        self.K = K
         self.encoder  = LAMEncoder(code_width=code_width, d_width=d_width,
                                 T=T, channels=channels)
         self.cookbook = Cookbook(K=K, code_width=code_width)
