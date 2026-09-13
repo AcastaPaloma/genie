@@ -1,0 +1,4 @@
+# Genie 1 model components for DOOM video. Python 3.12.
+torch>=2.7
+numpy>=1.26
+Pillow>=10.0
