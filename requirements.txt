@@ -1,5 +1,6 @@
-# Genie 1 model components for DOOM video. Python 3.12.
+# Genie 1 model components for DOOM video. Python 3.10+.
 torch>=2.7
 numpy>=1.26
 Pillow>=10.0
-array-record>=0.8.3
+# 0.8.1 has Python 3.10 wheels; newer releases require Python 3.11+.
+array-record>=0.8.1,<0.9

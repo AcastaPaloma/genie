@@ -16,9 +16,11 @@ def main():
     manifest = json.loads(manifest_path.read_text())
 
     def verify(path, entry):
+        digest = hashlib.sha256()
         with path.open('rb') as handle:
-            digest = hashlib.file_digest(handle, 'sha256').hexdigest()
-        if path.stat().st_size != entry['bytes'] or digest != entry['sha256']:
+            for chunk in iter(lambda: handle.read(4 * 1024 * 1024), b''):
+                digest.update(chunk)
+        if path.stat().st_size != entry['bytes'] or digest.hexdigest() != entry['sha256']:
             raise ValueError(f'Checksum mismatch: {path}')
 
     def download(entry):

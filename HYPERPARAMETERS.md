@@ -181,7 +181,7 @@ and checkpoint restoration. Full production training is not run by these tests.
 ## Download the same subset on a VM
 
 After cloning the repository, run `python3 scripts/download_doom.py`. This uses
-only the Python 3.11+ standard library and downloads the exact pinned 42/7/7
+only the Python 3.10+ standard library and downloads the exact pinned 42/7/7
 train/validation/test shards into `data/`. Paths, sizes and SHA-256 hashes are
 committed in `scripts/doom_split.json`. Completed matching files are reused;
 rerun the command after an interrupted download. Use `--output /path/to/data`
