@@ -137,3 +137,52 @@ temporal causality, masked targets, both dynamics input representations, action
 conditioning/stop-gradient, codebook search, patch reconstruction, FPS/episode
 boundaries, optimizer schedules, and LAM train/eval behavior. These CPU tests do
 not establish that full-size CUDA training or long rollouts work.
+
+## Tokenizer training entrypoint
+
+`vae.py` now has a single-device, tokenizer-only epoch loop:
+
+```sh
+python vae.py --epochs 1 --batch-size 1 --device cuda
+```
+
+`--batch-size` is the number of sequences, each containing exactly 16 consecutive
+stored frames from one ArrayRecord video. Defaults read `data/train` relative to
+this project, not the working directory. There is no fixed batch-count limit.
+The loader enumerates every chunk and shuffles sequence order each epoch; it
+never shuffles frames or samples across records. The last optimizer batch is
+kept even when it is smaller than the requested batch size.
+
+A 160-frame record yields ten sequences. A 40-frame record yields windows
+`[0:16]`, `[16:32]`, `[24:40]`: the final window overlaps to cover the tail without
+padding or dropping frames. The downloaded train split therefore yields 37,800
+sequences per epoch from 4,200 records / 600,000 original frames. No FPS-based
+subsampling is applied on this ArrayRecord path. Records shorter than 16 frames
+are rejected explicitly.
+
+The entrypoint uses full-size VAE defaults, AdamW at 3e-4 and the shared betas /
+weight decay. For this epoch-based entrypoint, LR is constant by default;
+`--warmup-steps 10000` opts into the paper's tokenizer warmup. CUDA uses bf16
+where supported, otherwise scaled fp16; CPU/MPS use float32. `--num-workers`
+controls spawned data-loader workers. This does not implement distributed
+training or gradient accumulation.
+
+After each epoch, `data/checkpoints/vae_latest.pt` is atomically replaced with
+model weights, constructor settings, optimizer/scheduler/scaler states, metrics,
+epoch and step counts. Override the path with `--checkpoint`. The model can be
+reconstructed from `model_config` and `model_state_dict`; CLI resume is not yet
+implemented. `model.train()` and `model.eval()` retain normal PyTorch behavior.
+
+Run focused checks with `python -m unittest discover -s tests -v`. Tests verify
+consecutive frames, complete frame coverage, record boundaries, spawned readers,
+the final partial batch, all sequences across multiple epochs, optimizer updates,
+and checkpoint restoration. Full production training is not run by these tests.
+
+## Download the same subset on a VM
+
+After cloning the repository, run `python3 scripts/download_doom.py`. This uses
+only the Python 3.11+ standard library and downloads the exact pinned 42/7/7
+train/validation/test shards into `data/`. Paths, sizes and SHA-256 hashes are
+committed in `scripts/doom_split.json`. Completed matching files are reused;
+rerun the command after an interrupted download. Use `--output /path/to/data`
+for another destination, then pass its `train` directory to `vae.py --data-dir`.

@@ -1,5 +1,8 @@
 """DOOM video clips for both Genie encoders: float32 (B,T,H,W,3) in [0,1].
 
+ArrayRecordClipDataset reads data/train directly, enumerating every consecutive
+16-frame chunk. The separate ClipDataset/build_loader APIs below read NPY data.
+
 Supply frames.npy (uint8 NHWC RGB frames) and episodes.npy (start,length rows)
 under data/doom. Each episode must have a constant source FPS; pass source_fps
 when it differs from 10. Never place a clip across deaths/resets/scene cuts.
@@ -7,6 +10,8 @@ This loader does not download data or assume that Atari recordings are DOOM.
 """
 
 from pathlib import Path
+import io
+import pickle
 
 import numpy as np
 import torch
@@ -20,6 +25,97 @@ FRAMES_NPY = "data/doom/frames.npy"
 EPS_NPY = "data/doom/episodes.npy"
 T = SEQUENCE_LENGTH
 BATCH = DYNAMICS_TRAINING.global_batch_size
+
+
+class _VideoRecordUnpickler(pickle.Unpickler):
+    """Only permit the NumPy constructors used by the downloaded video records."""
+
+    def find_class(self, module, name):
+        if (module, name) in (("numpy.core.multiarray", "_reconstruct"),
+                              ("numpy._core.multiarray", "_reconstruct")):
+            core = getattr(np, "_core", None)
+            return (core if core is not None else np.core).multiarray._reconstruct
+        if (module, name) == ("numpy", "ndarray"):
+            return np.ndarray
+        if (module, name) == ("numpy", "dtype"):
+            return np.dtype
+        if (module, name) in (("numpy.core.numeric", "_frombuffer"),
+                              ("numpy._core.numeric", "_frombuffer")):
+            core = getattr(np, "_core", None)
+            return (core if core is not None else np.core).numeric._frombuffer
+        raise pickle.UnpicklingError(f"Unsupported record object: {module}.{name}")
+
+
+class ArrayRecordClipDataset(Dataset):
+    """Enumerate every 16-frame chunk of every record in one split.
+
+    Windows have stride T. A final partial chunk becomes the last T consecutive
+    frames (overlapping the previous chunk), so no frames are discarded.
+    Records shorter than T are rejected rather than padded or joined together.
+    Only files directly inside data_dir are read; validation/test stay separate.
+    """
+
+    def __init__(self, data_dir, T=SEQUENCE_LENGTH, *, content_size=CONTENT_SIZE,
+                 image_size=IMAGE_SIZE):
+        from array_record.python.array_record_data_source import ArrayRecordDataSource
+
+        if T < 1:
+            raise ValueError("Sequence length must be positive")
+        self.paths = [str(p.resolve()) for p in sorted(Path(data_dir).glob("*.array_record"))]
+        if not self.paths:
+            raise FileNotFoundError(f"No .array_record files found in {data_dir}")
+        self.T, self.content_size, self.image_size = T, content_size, image_size
+        # Scan once at construction. Only lengths/counts survive this scan,
+        # not the video bytes. Worker processes open independent readers later.
+        reader = ArrayRecordDataSource(self.paths)
+        self.record_count = len(reader)
+        if not self.record_count:
+            raise ValueError("ArrayRecord files contain no video records")
+        lengths = []
+        for index in range(self.record_count):
+            record = _VideoRecordUnpickler(io.BytesIO(reader[index])).load()
+            length = record["sequence_length"]
+            if not isinstance(length, int) or length < T:
+                raise ValueError(f"Record {index} has fewer than {T} frames")
+            if not isinstance(record["raw_video"], bytes) or len(record["raw_video"]) != length * 60 * 80 * 3:
+                raise ValueError(f"Record {index} is not 60x80 RGB DOOM video")
+            lengths.append(length)
+        self.lengths = np.asarray(lengths, dtype=np.int64)
+        self.cumulative_chunks = np.cumsum((self.lengths + T - 1) // T)
+        self._reader = None
+
+    def __len__(self):
+        return int(self.cumulative_chunks[-1])
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state["_reader"] = None
+        return state
+
+    def window_location(self, index):
+        """Return (record index, first frame), useful for verifying coverage."""
+        if index < 0:
+            index += len(self)
+        if not 0 <= index < len(self):
+            raise IndexError(index)
+        record_index = int(np.searchsorted(self.cumulative_chunks, index, side="right"))
+        previous = int(self.cumulative_chunks[record_index - 1]) if record_index else 0
+        start = min((index - previous) * self.T, int(self.lengths[record_index]) - self.T)
+        return record_index, start
+
+    def __getitem__(self, index):
+        from array_record.python.array_record_data_source import ArrayRecordDataSource
+
+        record_index, start = self.window_location(index)
+        if self._reader is None:
+            self._reader = ArrayRecordDataSource(self.paths)
+        record = _VideoRecordUnpickler(io.BytesIO(self._reader[record_index])).load()
+        length = int(self.lengths[record_index])
+        if record["sequence_length"] != length:
+            raise ValueError("ArrayRecord changed after dataset indexing")
+        frames = np.frombuffer(record["raw_video"], dtype=np.uint8).reshape(length, 60, 80, 3)
+        return prepare_video(frames[start:start + self.T],
+                             content_size=self.content_size, image_size=self.image_size)
 
 
 def prepare_video(frames, *, layout="THWC", content_size=CONTENT_SIZE,

@@ -2,3 +2,4 @@
 torch>=2.7
 numpy>=1.26
 Pillow>=10.0
+array-record>=0.8.3

@@ -5,3 +5,8 @@ data/
 # Local datasets and rendered videos
 *.array_record
 *.mp4
+
+# Local tests and experiments
+/tests/
+/test.py
+/test_*.py
