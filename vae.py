@@ -18,6 +18,12 @@ class VAE(VideoPatches):
     Defaults: encoder 512/12/8, decoder 1024/20/16 (width/blocks/heads).
     Images default to 96x160, padded from 90x160 by the data pipeline.
     Both integer square sizes and (height,width) sizes are accepted.
+
+    stabilize=True adds parameter-free final LayerNorms before the code
+    projection and before the pixel projection (implementation_version
+    'stabilized-v2'). Checkpoints trained with it, e.g. vae_latest_best.pt,
+    reconstruct at ~40 dB with it and ~12 dB without; their original trainer
+    source was lost, and this reproduces its recorded validation quality.
     """
 
     def __init__(self, patch=VIDEO_PATCH, img=IMAGE_SIZE, channels=CHANNELS,
@@ -26,7 +32,7 @@ class VAE(VideoPatches):
                  dec_layers=DEC.layers, st_dec_heads=DEC.heads, *,
                  enc_head_dim=ENC.head_dim, dec_head_dim=DEC.head_dim,
                  code_width=CODE_WIDTH, num_codes=VIDEO_CODES,
-                 ffn_expansion=ENC.ffn_expansion):
+                 ffn_expansion=ENC.ffn_expansion, stabilize=False):
         super().__init__(img, patch, channels)
         if min(enc_width, dec_width, T, enc_layers, dec_layers) < 1:
             raise ValueError("Widths, context length and layer counts must be positive")
@@ -34,8 +40,10 @@ class VAE(VideoPatches):
             enc_width=enc_width, T=T, enc_layers=enc_layers, st_enc_heads=st_enc_heads,
             dec_width=dec_width, dec_layers=dec_layers, st_dec_heads=st_dec_heads,
             enc_head_dim=enc_head_dim, dec_head_dim=dec_head_dim,
-            code_width=code_width, num_codes=num_codes, ffn_expansion=ffn_expansion)
+            code_width=code_width, num_codes=num_codes, ffn_expansion=ffn_expansion,
+            stabilize=stabilize)
         self.enc_width, self.dec_width = enc_width, dec_width
+        self.stabilize = stabilize
         self.cb = Cookbook(K=num_codes, code_width=code_width)
         self.patch_proj = nn.Linear(self.patch_dim, enc_width)
         self.spatial_pos = position_parameter(self.n_patches, enc_width)
@@ -66,6 +74,8 @@ class VAE(VideoPatches):
         x = x + self.spatial_pos[None, None] + self.temporal_pos[None, :t, None]
         for block in self.enc_blocks:
             x = block(x)
+        if self.stabilize:
+            x = nn.functional.layer_norm(x, (x.shape[-1],))
         return self.cb(self.proj_enc_to_codebook_width(x))
 
     def decode(self, z_q):
@@ -78,6 +88,8 @@ class VAE(VideoPatches):
         x = x + self.dec_spatial_pos[None, None] + self.dec_temporal_pos[None, :t, None]
         for block in self.dec_blocks:
             x = block(x)
+        if self.stabilize:
+            x = nn.functional.layer_norm(x, (x.shape[-1],))
         # Bounded RGB reconstruction is an implementation choice for [0,1] data.
         return self.unpatchify(self.proj_dec_to_pp_width(x).sigmoid())
 

@@ -10,3 +10,5 @@ data/
 /tests/
 /test.py
 /test_*.py
+vae_latest_best.pt
+.gstack/
