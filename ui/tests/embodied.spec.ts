@@ -1,0 +1,53 @@
+import {test,expect} from '@playwright/test';
+import path from 'node:path';
+const shots=path.resolve('.cache/screenshots');
+
+test('full connectome drives live brain traces and MuJoCo body, with causal controls',async({page})=>{
+  test.setTimeout(90000);
+  await page.setViewportSize({width:1600,height:1100});
+  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+  page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
+  await page.goto('/embodied.html');
+  await expect(page.locator('#experiment')).toHaveAttribute('data-ready','true',{timeout:45000});
+  await expect(page.locator('#stimulus-encoder')).toHaveValue('synaptic');
+  await expect(page.locator('#encoder-description')).toContainText('receive no direct stimulation');
+  await expect.poll(async()=>Number(await page.locator('#experiment').getAttribute('data-sim-time')),{timeout:20000}).toBeGreaterThan(200);
+  await expect.poll(async()=>Number(await page.locator('#experiment').getAttribute('data-deliveries'))).toBeGreaterThan(100000);
+  const state=JSON.parse((await page.locator('#experiment').getAttribute('data-body-state'))!);
+  expect(state.time).toBeGreaterThan(.1);expect(state.joints.every(Number.isFinite)).toBe(true);
+  await page.screenshot({path:path.join(shots,'embodied-desktop.png'),fullPage:true});
+  await page.getByRole('button',{name:'Pause experiment',exact:true}).click();
+  await page.waitForTimeout(100);
+  const paused=await page.locator('#experiment').getAttribute('data-spikes');
+  await page.waitForTimeout(150);
+  expect(await page.locator('#experiment').getAttribute('data-spikes')).toBe(paused);
+  const brainBefore=await page.locator('#neural-canvas canvas').evaluate((canvas:HTMLCanvasElement)=>canvas.toDataURL());
+  await page.locator('#experiment-seek').fill('52');
+  await page.waitForTimeout(150);
+  expect(await page.locator('#neural-canvas canvas').evaluate((canvas:HTMLCanvasElement)=>canvas.toDataURL())).toBe(brainBefore);
+  await page.getByRole('button',{name:'Start experiment',exact:true}).click();
+  await expect.poll(()=>page.locator('#neural-canvas canvas').evaluate((canvas:HTMLCanvasElement)=>canvas.toDataURL())).not.toBe(brainBefore);
+  await page.getByRole('button',{name:'Pause experiment',exact:true}).click();
+  await page.getByRole('checkbox',{name:'Synaptic transmission',exact:true}).uncheck();
+  await page.getByRole('button',{name:'Reset',exact:true}).click();
+  await expect(page.locator('#experiment')).toHaveAttribute('data-sim-time','0');
+  await page.getByRole('button',{name:'Start experiment',exact:true}).click();
+  await expect.poll(async()=>Number(await page.locator('#experiment').getAttribute('data-sim-time'))).toBeGreaterThan(50);
+  expect(await page.locator('#experiment').getAttribute('data-deliveries')).toBe('0');
+  expect(await page.locator('#experiment').getAttribute('data-motor')).toBe('0');
+  await page.getByRole('button',{name:'Pulse forward command neurons',exact:true}).click();
+  await expect.poll(async()=>Number(await page.locator('#experiment').getAttribute('data-motor'))).toBeGreaterThan(.1);
+  await page.locator('#stimulus-encoder').selectOption('inverse');
+  await expect(page.locator('#experiment')).toHaveAttribute('data-encoder','inverse');
+  await expect(page.locator('#stimulus-rate')).toBeDisabled();
+  await expect(page.locator('#encoder-description')).toContainText('poor image fidelity');
+  expect(errors).toEqual([]);
+});
+
+test('embodied mobile layout and reduced motion',async({page})=>{
+  test.setTimeout(60000);await page.setViewportSize({width:390,height:844});await page.emulateMedia({reducedMotion:'reduce'});
+  await page.goto('/embodied.html');await expect(page.locator('#experiment')).toHaveAttribute('data-ready','true',{timeout:45000});
+  await expect(page.locator('#experiment')).toHaveAttribute('data-playing','false');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:path.join(shots,'embodied-mobile.png'),fullPage:true});
+});

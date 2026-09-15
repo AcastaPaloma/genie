@@ -1,0 +1,227 @@
+{
+  "source": "https://github.com/NeLy-EPFL/flygym",
+  "revision": "0884af08981994543634563d95e9b1eb49945082",
+  "license": "Apache-2.0",
+  "files": [
+    {
+      "file": "assets/model/c_abdomen12.stl",
+      "sha256": "656b60100c06b0a8eb2dfbd201b12cac5eb31ffec6bf9c6c4ff3f97d14376371",
+      "source": "wasm/game/assets/model/c_abdomen12.stl"
+    },
+    {
+      "file": "assets/model/c_abdomen3.stl",
+      "sha256": "264af5ede95bfcb11720219b31c76141a0921394f7c46e7fb7fb6b7066880f3b",
+      "source": "wasm/game/assets/model/c_abdomen3.stl"
+    },
+    {
+      "file": "assets/model/c_abdomen4.stl",
+      "sha256": "662bbc3af32a987511af04e437d02c40e99840960809f5020abe9ec91b226ca4",
+      "source": "wasm/game/assets/model/c_abdomen4.stl"
+    },
+    {
+      "file": "assets/model/c_abdomen5.stl",
+      "sha256": "87d1de98ad39ba52c096e0fd3b4860ae3a0aadeb4be46cac824e9b2501be6c48",
+      "source": "wasm/game/assets/model/c_abdomen5.stl"
+    },
+    {
+      "file": "assets/model/c_abdomen6.stl",
+      "sha256": "748dda76a46554fd1743113eaafdf0dc2d10546095f5420406745e0eb47f87fb",
+      "source": "wasm/game/assets/model/c_abdomen6.stl"
+    },
+    {
+      "file": "assets/model/c_haustellum.stl",
+      "sha256": "babceb7a6adf0c88e8de6ce9810c32b397d3d1cdd073c0b1bea1df9d8c6ac4e9",
+      "source": "wasm/game/assets/model/c_haustellum.stl"
+    },
+    {
+      "file": "assets/model/c_head.stl",
+      "sha256": "39c51acbdf5957af95e294fa485cd7602103ca83bf451e95e29d251bd43765b6",
+      "source": "wasm/game/assets/model/c_head.stl"
+    },
+    {
+      "file": "assets/model/c_rostrum.stl",
+      "sha256": "4ed0fa33c5867013482011e2ff656b71189f2b29dfb0bda2b0797961d95d12e4",
+      "source": "wasm/game/assets/model/c_rostrum.stl"
+    },
+    {
+      "file": "assets/model/c_thorax.stl",
+      "sha256": "b7fac1a3bcbad2100d063bae2ae6e81217e808f3c32564763ee7e43ec3904969",
+      "source": "wasm/game/assets/model/c_thorax.stl"
+    },
+    {
+      "file": "assets/model/fly.xml",
+      "sha256": "14138baf0f42add7172cf54d7c7e35cd918547365e6214e9756b69677b0c804a",
+      "source": "wasm/game/assets/model/fly.xml"
+    },
+    {
+      "file": "assets/model/l_arista.stl",
+      "sha256": "6201af1cbe213ee6e259a6d89df65080f9cb9d806e6526cbcc7c5f1ae793f97c",
+      "source": "wasm/game/assets/model/l_arista.stl"
+    },
+    {
+      "file": "assets/model/l_eye.stl",
+      "sha256": "08ce40c3264c9ab87703b6c013eae39d1bc48fa3e4cf02aec06d529c94e70daf",
+      "source": "wasm/game/assets/model/l_eye.stl"
+    },
+    {
+      "file": "assets/model/l_funiculus.stl",
+      "sha256": "d2a6d35751922fb8b1ce07b269bc432f33d7f8f6d243b2dd1801e021b91d8156",
+      "source": "wasm/game/assets/model/l_funiculus.stl"
+    },
+    {
+      "file": "assets/model/l_haltere.stl",
+      "sha256": "13d77fcca66fca90db5cf00b33a7369ae80366fe39974df3667e709882e64ed6",
+      "source": "wasm/game/assets/model/l_haltere.stl"
+    },
+    {
+      "file": "assets/model/l_pedicel.stl",
+      "sha256": "6de0f06e57c78f8738f67c0c52b85e74cb105789497a4183944e90211d3a4bf4",
+      "source": "wasm/game/assets/model/l_pedicel.stl"
+    },
+    {
+      "file": "assets/model/l_wing.stl",
+      "sha256": "142f77f15008fd75e1490b546bb859cf98c056121f1abd65acea2052c4e7764c",
+      "source": "wasm/game/assets/model/l_wing.stl"
+    },
+    {
+      "file": "assets/model/lf_coxa.stl",
+      "sha256": "bff053bfee772796dae2b396aa0e3be12919b7fb1ee33b5fde369bec00944b64",
+      "source": "wasm/game/assets/model/lf_coxa.stl"
+    },
+    {
+      "file": "assets/model/lf_tarsus1.stl",
+      "sha256": "29085dda732699c4a3110458303adf2eec667f7db6e42166d408c260ae6acf5e",
+      "source": "wasm/game/assets/model/lf_tarsus1.stl"
+    },
+    {
+      "file": "assets/model/lf_tarsus2.stl",
+      "sha256": "996735c15a7e8e0c022babf5500224fa6e23de0e277305279d4b6787d56335d8",
+      "source": "wasm/game/assets/model/lf_tarsus2.stl"
+    },
+    {
+      "file": "assets/model/lf_tarsus3.stl",
+      "sha256": "166044083a5a4a0e8b7db91cdd71ef0ea0e3feb18f1630955156de14931d9495",
+      "source": "wasm/game/assets/model/lf_tarsus3.stl"
+    },
+    {
+      "file": "assets/model/lf_tarsus4.stl",
+      "sha256": "c90d8c6ebd0e2384a45524944e4fb2e02ba413be26ee04bc5030b2afb5876943",
+      "source": "wasm/game/assets/model/lf_tarsus4.stl"
+    },
+    {
+      "file": "assets/model/lf_tarsus5.stl",
+      "sha256": "93b048052461fa756a767608418ec90e537435a1ff282f2a393faa45ba60ae73",
+      "source": "wasm/game/assets/model/lf_tarsus5.stl"
+    },
+    {
+      "file": "assets/model/lf_tibia.stl",
+      "sha256": "8138fe5f1fc52588dca6677bb338d39451813ac96159f78d6cf677eba73f3862",
+      "source": "wasm/game/assets/model/lf_tibia.stl"
+    },
+    {
+      "file": "assets/model/lf_trochanterfemur.stl",
+      "sha256": "50e4e7baf2852a369f0dda2a2c9708a68c45893b3019a79dd74799e8e2ea64c9",
+      "source": "wasm/game/assets/model/lf_trochanterfemur.stl"
+    },
+    {
+      "file": "assets/model/lh_coxa.stl",
+      "sha256": "ad3a10789b8bd5e0f3db2667a1fe373ffdb83cfc876b34d60508e9e34a51366d",
+      "source": "wasm/game/assets/model/lh_coxa.stl"
+    },
+    {
+      "file": "assets/model/lh_tarsus1.stl",
+      "sha256": "61af16259215525e092d61426b874c7855485a9c7cfa91eecfc2fe99281a2dc6",
+      "source": "wasm/game/assets/model/lh_tarsus1.stl"
+    },
+    {
+      "file": "assets/model/lh_tarsus2.stl",
+      "sha256": "da796bc3ad5d355b9e941aeeb6ad96c7fb00dee7421995605dcc81cd6fd7af12",
+      "source": "wasm/game/assets/model/lh_tarsus2.stl"
+    },
+    {
+      "file": "assets/model/lh_tarsus3.stl",
+      "sha256": "08280c942abf91279e86414d064f39cae2b46ba9f62845252a9763d0839fabe5",
+      "source": "wasm/game/assets/model/lh_tarsus3.stl"
+    },
+    {
+      "file": "assets/model/lh_tarsus4.stl",
+      "sha256": "623f9059236af1327770f6f8e5e4fb8dc87930c49f5559c36d3d4245f51f7678",
+      "source": "wasm/game/assets/model/lh_tarsus4.stl"
+    },
+    {
+      "file": "assets/model/lh_tarsus5.stl",
+      "sha256": "1b86c811928d0a6e04c693b9a213f06c0f7a037584252fc8f35d408be1bf87e8",
+      "source": "wasm/game/assets/model/lh_tarsus5.stl"
+    },
+    {
+      "file": "assets/model/lh_tibia.stl",
+      "sha256": "2853873ade9abeb35da5f1a6c822d223bbe19a50d8ed77921bb77743b4782a60",
+      "source": "wasm/game/assets/model/lh_tibia.stl"
+    },
+    {
+      "file": "assets/model/lh_trochanterfemur.stl",
+      "sha256": "8e6b7ee8c4f6c388b64250086acc952c10abd469ac7bf0fb7015c2837e53d423",
+      "source": "wasm/game/assets/model/lh_trochanterfemur.stl"
+    },
+    {
+      "file": "assets/model/lm_coxa.stl",
+      "sha256": "01a6f4f4147b7cd308f0a1db79786694632c9fe5a3425b5e3454a7fa7624897b",
+      "source": "wasm/game/assets/model/lm_coxa.stl"
+    },
+    {
+      "file": "assets/model/lm_tarsus1.stl",
+      "sha256": "b7f50bfe1e75dfa65110a4f80e0216858a7a75712115b04605f344c8e837b1ae",
+      "source": "wasm/game/assets/model/lm_tarsus1.stl"
+    },
+    {
+      "file": "assets/model/lm_tarsus2.stl",
+      "sha256": "2dbb000ae11ef58de0023ccbdbfc8f1c5ff7b7517824a58d3e204f3ee00770c4",
+      "source": "wasm/game/assets/model/lm_tarsus2.stl"
+    },
+    {
+      "file": "assets/model/lm_tarsus3.stl",
+      "sha256": "8f1814f0054382e037279f04d0bb998e36ccaabd57ec418d35dd6f7e47bd51bb",
+      "source": "wasm/game/assets/model/lm_tarsus3.stl"
+    },
+    {
+      "file": "assets/model/lm_tarsus4.stl",
+      "sha256": "3f2881bd6f1fdb445bf01c00cac53c9a1b30388cd3fdc1b327704c60f138bf03",
+      "source": "wasm/game/assets/model/lm_tarsus4.stl"
+    },
+    {
+      "file": "assets/model/lm_tarsus5.stl",
+      "sha256": "3e9a76e4c0c4e829705271846f93a3aa056a0e87bc99996519722eeb841c1b70",
+      "source": "wasm/game/assets/model/lm_tarsus5.stl"
+    },
+    {
+      "file": "assets/model/lm_tibia.stl",
+      "sha256": "dc1ad6da6db91ba703150e6150f59a498f9dbd311b1ec0678da3f896c421dab5",
+      "source": "wasm/game/assets/model/lm_tibia.stl"
+    },
+    {
+      "file": "assets/model/lm_trochanterfemur.stl",
+      "sha256": "9619105028e5006d891b12dfced77aafa3c41a599edbf49d14691907ce2eb502",
+      "source": "wasm/game/assets/model/lm_trochanterfemur.stl"
+    },
+    {
+      "file": "assets/model_meta.json",
+      "sha256": "f3d15d6883a8a36c016d969228efd1b1fd82380316bbc3c49d4fb098de7d51c8",
+      "source": "wasm/game/assets/model_meta.json"
+    },
+    {
+      "file": "vendor/mujoco/mujoco.d.ts",
+      "sha256": "9895441e51a192838e43e5924a87032d433ce00edd67ca99c4a03367173207f8",
+      "source": "wasm/shared/vendor/mujoco/mujoco.d.ts"
+    },
+    {
+      "file": "vendor/mujoco/mujoco.js",
+      "sha256": "1b74d494f7b0c8aa42629d105de4707a361c7b01065e47d3a100790d2951e008",
+      "source": "wasm/shared/vendor/mujoco/mujoco.js"
+    },
+    {
+      "file": "vendor/mujoco/mujoco.wasm",
+      "sha256": "9eb895c79cb4d4a6d88bf2d9a449081a5a5c132e6a705ed90252a14b7f21ade8",
+      "source": "wasm/shared/vendor/mujoco/mujoco.wasm"
+    }
+  ]
+}

@@ -120,7 +120,7 @@ def load_tokenizer(path, device):
     import inspect
 
     checkpoint = torch.load(path, map_location="cpu", weights_only=False)
-    config = checkpoint["model_config"]
+    config = {"stabilize": False, **checkpoint["model_config"]}
     unknown = set(config) - set(inspect.signature(VAE.__init__).parameters)
     if unknown:
         # Loading weights into a class with different forward math gives valid

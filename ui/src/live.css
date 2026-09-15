@@ -1,0 +1,20 @@
+#live-main{max-width:1920px;margin:auto;padding:25px 28px 40px}
+#live-experiment .paired-stage{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)}
+#live-experiment .source-monitor{aspect-ratio:4/3}
+#live-experiment .source-monitor canvas{image-rendering:pixelated}
+#live-file{display:block;width:100%;font:inherit;font-size:12px;line-height:1.5;color:var(--muted);margin:8px 0 0}
+#live-file::file-selector-button{border:1px solid var(--line);background:var(--paper);border-radius:var(--radius-button);padding:9px 10px;color:var(--ink);font:inherit;margin-right:8px;cursor:pointer}
+#live-experiment .science-method{margin-top:32px}
+#live-experiment .experiment-stats{flex-wrap:wrap;gap:10px 20px;height:auto;min-height:42px;padding:8px 0}
+#live-file-status{overflow-wrap:anywhere}
+.measurement-actions{display:flex;gap:8px;flex-wrap:wrap}
+.brain-view-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;pointer-events:auto}
+.stage-button{border:1px solid #53626b;border-radius:6px;min-height:36px;padding:0 10px;font:inherit;font-size:12px;cursor:pointer}
+#live-experiment .focused-only{display:none}
+.brain-focus{padding:0;border:0;margin:0;width:100vw;height:100dvh;max-width:none;max-height:none;background:var(--stage);color:#edf2f5}
+.brain-focus::backdrop{background:#101619}
+.brain-focus .neural-stage{width:100%;height:100%;border:0}
+#live-experiment .brain-focus .focused-only{display:block}
+.brain-focus .stage-caption{background:#101619d9;width:fit-content;padding:10px 14px;border-radius:6px}
+@media(max-width:1100px){#live-main{padding:20px}}
+@media(max-width:640px){#live-main{padding:18px 16px}#live-experiment .paired-stage{grid-template-columns:1fr}#live-experiment .experiment-nav a{font-size:12px}}

@@ -60,8 +60,14 @@ DeepMind implementation. The following are explicit local choices:
   embedding. To generate a new frame, append masked positions and its action.
 - VQ commitment beta 0.25, uniform codebook initialization, MSE reconstruction,
   LAM spatial mean pooling, tokenizer sigmoid, a dynamics final LayerNorm, and
-  an untied logits head are local choices. Codebook distance search is chunked
+  an untied logits head are local choices. The repaired tokenizer additionally
+  uses parameter-free final encoder/decoder LayerNorm, a small initialized pixel
+  head, float32 pixel sigmoid, and data-based codebook initialization in its
+  distributed trainer. These are stability changes, not claims about the paper.
+  Codebook distance search is chunked
   in float32; chunk size 4096 changes memory usage, not codebook capacity.
+  The straight-through expression preserves selected codes without subtractive
+  cancellation in BF16; the encoder's identity gradient is unchanged.
 - LAM optimizer settings follow dynamics here. Tokenizer/LAM bfloat16 is also a
   local choice. The loop must actually enable autocast; config alone does not.
 
@@ -115,10 +121,12 @@ sharding for the VM; they do not alter model widths or block counts.
 
 The tokenizer, LAM, and dynamics forward paths, data loader, and optimizer
 factory are implemented. `main.py` is an architecture audit, **not a trainer**.
-Masking rates/sampling settings are configuration for the future training and
-MaskGIT loops; no distributed training loop, checkpoint pipeline, iterative
-sampler, DOOM data collector, or playable application exists yet. Changing
-hyperparameters does not establish rollout quality or playability.
+Tokenizer training/checkpoint entrypoints are described below. Single-device
+LAM and dynamics trainers are also implemented; see `DYNAMICS_TRAINING_SPEC.md`
+for the dynamics data contract, masking and checkpoint behavior. The separate
+`ui/` experiment displays simulated fly-brain activity from decoded video; it
+is not a learned playable world model. Changing hyperparameters or passing
+training checks does not establish rollout quality or playability.
 
 The dynamics output is `(B,T,960,1024)` logits. Supervise masked target positions
 against original tokenizer IDs; never feed a target its own visible answer.
@@ -177,6 +185,63 @@ Run focused checks with `python -m unittest discover -s tests -v`. Tests verify
 consecutive frames, complete frame coverage, record boundaries, spawned readers,
 the final partial batch, all sequences across multiple epochs, optimizer updates,
 and checkpoint restoration. Full production training is not run by these tests.
+
+## Resumable training on multiple GPUs
+
+`train_tokenizer.py` adds a distributed entrypoint; `vae.py` keeps its original
+single-device API. On two GPUs:
+
+```sh
+torchrun --standalone --nproc_per_node=2 train_tokenizer.py \
+  --epochs 1 --batch-size 2 --num-workers 4 --checkpoint-every 250
+```
+
+Batch size and worker count are per GPU. Two ranks with batch size 2 process four
+sequences per optimizer step. This changes effective batch size and updates per
+epoch; learning rate is not automatically scaled. BF16 autocast is used where
+supported. DDP synchronizes gradients while each rank processes different clips.
+The deterministic epoch permutation covers every sample. Uneven final batches
+use sample-weighted gradients; an empty rank runs a zero-weight dummy sample to
+keep collectives aligned without counting it as training data.
+
+Following the diagnosed September 14 collapse, this entrypoint defaults to LR
+`1e-4`, 1,000 warmup steps, and gradient norm clipping at 1.0. Fresh codebooks are
+initialized from encoder features sampled across eight training clips before
+DDP broadcasts weights. Model width, depth, patch size and vocabulary are intact.
+Checkpoint constructor settings record `stabilize=True`; old configurations
+without this flag are reconstructed with `stabilize=False` by the resume loader.
+
+Validation runs every 250 steps by default on four fixed held-out clips. JSON
+metrics and input/reconstruction PNGs go in `validation/` beside the checkpoint.
+Logs include active codes, perplexity, pixel saturation and output differences.
+After step 500 the job checkpoints and exits with an error if validation shows
+only one active code, identical outputs across different clips, or >99% saturated
+pixels. The best validation-MSE snapshot is retained as `vae_latest_best.pt`.
+These checks catch the observed failure, but do not establish final model quality
+or catch every possible failure. `--validation-every 0` is intended for tests.
+
+Atomic checkpoints save every 250 steps, at epoch boundaries, and after the
+current step on coordinated SIGINT/SIGTERM. They include model, optimizer,
+scheduler and scaler state, history, epoch metrics, and the next shuffled sample.
+Resume with the same data, seed and LR:
+
+```sh
+torchrun --standalone --nproc_per_node=2 train_tokenizer.py \
+  --epochs 1 --batch-size 2 --num-workers 4 \
+  --resume data/checkpoints/vae_latest.pt
+```
+
+`--epochs` counts total epochs, including completed ones. `--max-steps N` saves
+and exits after N steps in this invocation for deployment checks. The new format
+is distinct from legacy `vae.py` checkpoints and cannot recover unsaved state
+from a legacy process. Loss logs are running epoch averages; throughput counts
+sequences across all ranks. The default model has no stochastic forward
+operations; models with dropout would also need per-rank RNG state for exact
+resume.
+
+Run `python scripts/check_tokenizer_training.py` to check coverage, distributed
+gradient equivalence including uneven tails, and exact mid-epoch model/optimizer
+restoration using a tiny model on CPU.
 
 ## Download the same subset on a VM
 

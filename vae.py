@@ -19,11 +19,9 @@ class VAE(VideoPatches):
     Images default to 96x160, padded from 90x160 by the data pipeline.
     Both integer square sizes and (height,width) sizes are accepted.
 
-    stabilize=True adds parameter-free final LayerNorms before the code
-    projection and before the pixel projection (implementation_version
-    'stabilized-v2'). Checkpoints trained with it, e.g. vae_latest_best.pt,
-    reconstruct at ~40 dB with it and ~12 dB without; their original trainer
-    source was lost, and this reproduces its recorded validation quality.
+    stabilize=True adds parameter-free output LayerNorms and the initialization
+    used by the stabilized-v2 trainer in train_tokenizer.py. Reconstruct saved
+    models with their recorded flag; legacy checkpoints without it use False.
     """
 
     def __init__(self, patch=VIDEO_PATCH, img=IMAGE_SIZE, channels=CHANNELS,
@@ -32,7 +30,7 @@ class VAE(VideoPatches):
                  dec_layers=DEC.layers, st_dec_heads=DEC.heads, *,
                  enc_head_dim=ENC.head_dim, dec_head_dim=DEC.head_dim,
                  code_width=CODE_WIDTH, num_codes=VIDEO_CODES,
-                 ffn_expansion=ENC.ffn_expansion, stabilize=False):
+                 ffn_expansion=ENC.ffn_expansion, stabilize=True):
         super().__init__(img, patch, channels)
         if min(enc_width, dec_width, T, enc_layers, dec_layers) < 1:
             raise ValueError("Widths, context length and layer counts must be positive")
@@ -63,9 +61,21 @@ class VAE(VideoPatches):
             for _ in range(dec_layers)
         ])
         self.proj_dec_to_pp_width = nn.Linear(dec_width, self.patch_dim)
+        # Pre-norm residual blocks do not normalize the final residual stream.
+        # Unbounded output logits previously saturated sigmoid and killed ALL
+        # reconstruction gradients. These parameter-free norms preserve widths.
+        self.encoder_output_norm = nn.LayerNorm(enc_width, elementwise_affine=False) if stabilize else nn.Identity()
+        self.decoder_output_norm = nn.LayerNorm(dec_width, elementwise_affine=False) if stabilize else nn.Identity()
+        if stabilize:
+            nn.init.normal_(self.proj_dec_to_pp_width.weight, std=0.01)
+            nn.init.zeros_(self.proj_dec_to_pp_width.bias)
 
     def encode(self, video):
         """Return quantized vectors (B,T,N,32), IDs (B,T,N), and VQ loss."""
+        return self.cb(self.encode_features(video))
+
+    def encode_features(self, video):
+        """Continuous features before quantization, also used to seed the codebook."""
         x = self.patchify(video)
         t = video.shape[1]
         if not 1 <= t <= self.temporal_pos.shape[0]:
@@ -74,9 +84,7 @@ class VAE(VideoPatches):
         x = x + self.spatial_pos[None, None] + self.temporal_pos[None, :t, None]
         for block in self.enc_blocks:
             x = block(x)
-        if self.stabilize:
-            x = nn.functional.layer_norm(x, (x.shape[-1],))
-        return self.cb(self.proj_enc_to_codebook_width(x))
+        return self.proj_enc_to_codebook_width(self.encoder_output_norm(x))
 
     def decode(self, z_q):
         if z_q.ndim != 4 or tuple(z_q.shape[2:]) != (self.n_patches, self.cb.code_width):
@@ -88,10 +96,11 @@ class VAE(VideoPatches):
         x = x + self.dec_spatial_pos[None, None] + self.dec_temporal_pos[None, :t, None]
         for block in self.dec_blocks:
             x = block(x)
-        if self.stabilize:
-            x = nn.functional.layer_norm(x, (x.shape[-1],))
         # Bounded RGB reconstruction is an implementation choice for [0,1] data.
-        return self.unpatchify(self.proj_dec_to_pp_width(x).sigmoid())
+        logits = self.proj_dec_to_pp_width(self.decoder_output_norm(x))
+        # Keep the pixel sigmoid in float32 under autocast as an additional
+        # precision safeguard. Normalization is what controls logit magnitude.
+        return self.unpatchify(logits.float().sigmoid() if self.model_config["stabilize"] else logits.sigmoid())
 
     def decode_tokens(self, indices):
         return self.decode(self.cb.cookbook(indices))

@@ -1,0 +1,23 @@
+import json,hashlib
+from pathlib import Path
+import numpy as np
+from scipy.ndimage import gaussian_filter
+from PIL import Image,ImageDraw,ImageFont
+ROOT=Path(__file__).resolve().parents[1];OUT=ROOT/'public/data/live-validation';OUT.mkdir(exist_ok=True)
+W,H=160,120;records=[];panel=Image.new('RGB',(1000,1320),'#f7f9fa');d=ImageDraw.Draw(panel);font=ImageFont.load_default(size=17);small=ImageFont.load_default(size=14)
+d.text((18,10),'Same input frames / light from actual simulated spikes',font=font,fill='#252e35');d.text((18,36),'160 x 120 grayscale · 18,901 real neurons · no frame-wise reset or warmup',font=small,fill='#52616d')
+for j,clip in enumerate(['map01','map02','map03']):
+ path=ROOT/f'.cache/large-control/live160-{clip}.json';q=json.loads(path.read_text());rows=q['sequence'];target=np.array([r['target'] for r in rows]).reshape(-1,H,W);raw=np.array([r['prediction'] for r in rows]).reshape(target.shape)
+ # Match the live renderer: fixed 3 × 3 Gaussian kernel, .6-cell sigma,
+ # normalize only over actual anatomical support. No target enters this filter.
+ view=json.load(open(ROOT/'public/data/selected-inhibitory-selective-160/view.json'));op=(ROOT/'public/data/selected-inhibitory-selective-160/operator.bin').read_bytes();_,p,n,e=np.frombuffer(op,'<u4',4);row=np.frombuffer(op,'<u4',e,16);mask=np.zeros(p);mask[row]=1;mask=mask.reshape(H,W);smooth=gaussian_filter(raw,[0,.6,.6],truncate=1/.6,mode='constant')/np.maximum(gaussian_filter(mask,.6,truncate=1/.6,mode='constant'),1e-9)
+ frameMse=np.mean((smooth-target)**2,axis=(1,2));flatMse=np.mean((target-target.mean(axis=(1,2),keepdims=True))**2,axis=(1,2))
+ coarse=lambda images:np.array([np.asarray(Image.fromarray(f.astype('float32')).resize((40,30),Image.Resampling.BOX).resize((W,H),Image.Resampling.BILINEAR)) for f in images]);detail=target-coarse(target);measuredDetail=smooth-coarse(smooth)
+ # Compare identical time indices and ±1/±2-frame references for lag evidence.
+ lagMse={str(lag):float(np.mean((smooth[max(0,lag):len(rows)+min(0,lag)]-target[max(0,-lag):len(rows)-max(0,lag)])**2)) for lag in range(-2,3)}
+ record=dict(clip=clip,heldOut=clip!='map01',frames=len(rows),rawMse=float(np.mean((raw-target)**2)),lightMse=float(frameMse.mean()),lightPsnrDb=float(-10*np.log10(frameMse.mean())),meanCorrelation=float(np.mean([np.corrcoef(a.ravel(),b.ravel())[0,1] for a,b in zip(smooth,target)])),mseReductionAgainstFlat=1-float(frameMse.mean()/flatMse.mean()),detailCorrelationAbove40x30=float(np.corrcoef(detail.ravel(),measuredDetail.ravel())[0,1]),bestFrameLag=min(lagMse,key=lagMse.get),lagMse=lagMse,neuralMsMean=float(np.mean(q['timings'])),neuralMsP95=float(np.percentile(q['timings'],95)),synapsesCutMaxOutput=q['maximumOutput'],upstreamSpikesWithCut=q['disconnectedSpikes'],deliveriesWithCut=q['disconnectedDeliveries'],recordSha256=hashlib.sha256(path.read_bytes()).hexdigest());records.append(record)
+ index=32;top=76+j*408;d.text((18,top),f'{clip} · {"held-out" if j else "development"} · frame {index} / source',font=font,fill='#252e35');d.text((516,top),f'Spike emission · fixed light blur · {record["lightPsnrDb"]:.1f} dB sequence PSNR',font=small,fill='#252e35')
+ for k,arr in enumerate([target[index],smooth[index]]):panel.paste(Image.fromarray(np.uint8(np.clip(arr,0,1)*255)).convert('RGB').resize((480,360),Image.Resampling.NEAREST),(18+k*498,top+30))
+ np.savez_compressed(ROOT/f'.cache/large-control/live160-{clip}-arrays.npz',target=target.astype('f4'),raw=raw.astype('f4'),emission=smooth.astype('f4'))
+report=dict(date='2026-09-15',status='Engineering measurements, not biological validation',resolution=[W,H],displayedNeurons=18901,simulatedNeurons=138639,profile=json.load(open(ROOT/'public/data/live-profile.json')),protocol='Native 320 × 240 Freedoom inputs, 96 consecutive 100-ms steps per clip. Reset once before a clip, no warmup. Neural history persists through its entire sequence. Map01 used for development; map02 and map03 held out of parameter selection. Full image including unsupported pixels is scored. Decoder seeks are outside standalone neural timing.',lightFilter='Exactly one fixed .6-cell, 3 × 3 Gaussian filter of emitted light, normalized by geometry support. No target-dependent filtering. Raw emission is available in the app.',detailMetric='Pearson correlation of high-frequency residuals after subtracting a 40 × 30 box-downsample/bilinear-upsample image from target and emission. Positive correlation shows retained detail; it is not a resolution guarantee.',runs=records)
+(OUT/'sequence-summary.json').write_text(json.dumps(report,indent=2));panel.save(OUT/'comparison.png');print(json.dumps(records,indent=2))

@@ -1,0 +1,514 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-15T04:25:37.014696+00:00",
+  "title": "Design System: Neuroframe",
+  "extensions": {
+    "colorMeta": {
+      "surround": {
+        "role": "neutral",
+        "displayName": "Instrument Grey",
+        "tonalRamp": [
+          "oklch(15% 0.00518 247.88)",
+          "oklch(27% 0.00518 247.88)",
+          "oklch(38% 0.00518 247.88)",
+          "oklch(50% 0.00518 247.88)",
+          "oklch(61% 0.00518 247.88)",
+          "oklch(73% 0.00518 247.88)",
+          "oklch(84% 0.00518 247.88)",
+          "oklch(95% 0.00518 247.88)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Cool Paper",
+        "tonalRamp": [
+          "oklch(15% 0.00171 247.84)",
+          "oklch(27% 0.00171 247.84)",
+          "oklch(38% 0.00171 247.84)",
+          "oklch(50% 0.00171 247.84)",
+          "oklch(61% 0.00171 247.84)",
+          "oklch(73% 0.00171 247.84)",
+          "oklch(84% 0.00171 247.84)",
+          "oklch(95% 0.00171 247.84)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Graphite Ink",
+        "tonalRamp": [
+          "oklch(15% 0.01848 248.47)",
+          "oklch(27% 0.01848 248.47)",
+          "oklch(38% 0.01848 248.47)",
+          "oklch(50% 0.01848 248.47)",
+          "oklch(61% 0.01848 248.47)",
+          "oklch(73% 0.01848 248.47)",
+          "oklch(84% 0.01848 248.47)",
+          "oklch(95% 0.01848 248.47)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Slate Annotation",
+        "tonalRamp": [
+          "oklch(15% 0.02388 248.28)",
+          "oklch(27% 0.02388 248.28)",
+          "oklch(38% 0.02388 248.28)",
+          "oklch(50% 0.02388 248.28)",
+          "oklch(61% 0.02388 248.28)",
+          "oklch(73% 0.02388 248.28)",
+          "oklch(84% 0.02388 248.28)",
+          "oklch(95% 0.02388 248.28)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Divider Grey",
+        "tonalRamp": [
+          "oklch(15% 0.00985 252.82)",
+          "oklch(27% 0.00985 252.82)",
+          "oklch(38% 0.00985 252.82)",
+          "oklch(50% 0.00985 252.82)",
+          "oklch(61% 0.00985 252.82)",
+          "oklch(73% 0.00985 252.82)",
+          "oklch(84% 0.00985 252.82)",
+          "oklch(95% 0.00985 252.82)"
+        ]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Transport Cobalt",
+        "tonalRamp": [
+          "oklch(15% 0.21423 264.27)",
+          "oklch(27% 0.21423 264.27)",
+          "oklch(38% 0.21423 264.27)",
+          "oklch(50% 0.21423 264.27)",
+          "oklch(61% 0.21423 264.27)",
+          "oklch(73% 0.21423 264.27)",
+          "oklch(84% 0.21423 264.27)",
+          "oklch(95% 0.21423 264.27)"
+        ]
+      },
+      "accent-dark": {
+        "role": "primary",
+        "displayName": "Pressed Cobalt",
+        "tonalRamp": [
+          "oklch(15% 0.19577 264.10)",
+          "oklch(27% 0.19577 264.10)",
+          "oklch(38% 0.19577 264.10)",
+          "oklch(50% 0.19577 264.10)",
+          "oklch(61% 0.19577 264.10)",
+          "oklch(73% 0.19577 264.10)",
+          "oklch(84% 0.19577 264.10)",
+          "oklch(95% 0.19577 264.10)"
+        ]
+      },
+      "stage": {
+        "role": "neutral",
+        "displayName": "Charcoal Stage",
+        "tonalRamp": [
+          "oklch(15% 0.01097 229.64)",
+          "oklch(27% 0.01097 229.64)",
+          "oklch(38% 0.01097 229.64)",
+          "oklch(50% 0.01097 229.64)",
+          "oklch(61% 0.01097 229.64)",
+          "oklch(73% 0.01097 229.64)",
+          "oklch(84% 0.01097 229.64)",
+          "oklch(95% 0.01097 229.64)"
+        ]
+      },
+      "stage-ink": {
+        "role": "neutral",
+        "displayName": "Stage Light",
+        "tonalRamp": [
+          "oklch(15% 0.00670 233.64)",
+          "oklch(27% 0.00670 233.64)",
+          "oklch(38% 0.00670 233.64)",
+          "oklch(50% 0.00670 233.64)",
+          "oklch(61% 0.00670 233.64)",
+          "oklch(73% 0.00670 233.64)",
+          "oklch(84% 0.00670 233.64)",
+          "oklch(95% 0.00670 233.64)"
+        ]
+      },
+      "white": {
+        "role": "neutral",
+        "displayName": "White",
+        "tonalRamp": [
+          "oklch(15% 0.00000 0.00)",
+          "oklch(27% 0.00000 0.00)",
+          "oklch(38% 0.00000 0.00)",
+          "oklch(50% 0.00000 0.00)",
+          "oklch(61% 0.00000 0.00)",
+          "oklch(73% 0.00000 0.00)",
+          "oklch(84% 0.00000 0.00)",
+          "oklch(95% 0.00000 0.00)"
+        ]
+      },
+      "focus": {
+        "role": "primary",
+        "displayName": "Focus Blue",
+        "tonalRamp": [
+          "oklch(15% 0.14553 266.36)",
+          "oklch(27% 0.14553 266.36)",
+          "oklch(38% 0.14553 266.36)",
+          "oklch(50% 0.14553 266.36)",
+          "oklch(61% 0.14553 266.36)",
+          "oklch(73% 0.14553 266.36)",
+          "oklch(84% 0.14553 266.36)",
+          "oklch(95% 0.14553 266.36)"
+        ]
+      },
+      "control-hover": {
+        "role": "neutral",
+        "displayName": "Control Hover",
+        "tonalRamp": [
+          "oklch(15% 0.01204 259.82)",
+          "oklch(27% 0.01204 259.82)",
+          "oklch(38% 0.01204 259.82)",
+          "oklch(50% 0.01204 259.82)",
+          "oklch(61% 0.01204 259.82)",
+          "oklch(73% 0.01204 259.82)",
+          "oklch(84% 0.01204 259.82)",
+          "oklch(95% 0.01204 259.82)"
+        ]
+      },
+      "control-hover-line": {
+        "role": "neutral",
+        "displayName": "Control Hover Line",
+        "tonalRamp": [
+          "oklch(15% 0.03176 258.94)",
+          "oklch(27% 0.03176 258.94)",
+          "oklch(38% 0.03176 258.94)",
+          "oklch(50% 0.03176 258.94)",
+          "oklch(61% 0.03176 258.94)",
+          "oklch(73% 0.03176 258.94)",
+          "oklch(84% 0.03176 258.94)",
+          "oklch(95% 0.03176 258.94)"
+        ]
+      },
+      "range-track": {
+        "role": "neutral",
+        "displayName": "Range Track",
+        "tonalRamp": [
+          "oklch(15% 0.01875 258.36)",
+          "oklch(27% 0.01875 258.36)",
+          "oklch(38% 0.01875 258.36)",
+          "oklch(50% 0.01875 258.36)",
+          "oklch(61% 0.01875 258.36)",
+          "oklch(73% 0.01875 258.36)",
+          "oklch(84% 0.01875 258.36)",
+          "oklch(95% 0.01875 258.36)"
+        ]
+      },
+      "segmented-surround": {
+        "role": "neutral",
+        "displayName": "Segmented Surround",
+        "tonalRamp": [
+          "oklch(15% 0.00799 253.85)",
+          "oklch(27% 0.00799 253.85)",
+          "oklch(38% 0.00799 253.85)",
+          "oklch(50% 0.00799 253.85)",
+          "oklch(61% 0.00799 253.85)",
+          "oklch(73% 0.00799 253.85)",
+          "oklch(84% 0.00799 253.85)",
+          "oklch(95% 0.00799 253.85)"
+        ]
+      },
+      "segmented-hover": {
+        "role": "neutral",
+        "displayName": "Segmented Hover",
+        "tonalRamp": [
+          "oklch(15% 0.00988 267.36)",
+          "oklch(27% 0.00988 267.36)",
+          "oklch(38% 0.00988 267.36)",
+          "oklch(50% 0.00988 267.36)",
+          "oklch(61% 0.00988 267.36)",
+          "oklch(73% 0.00988 267.36)",
+          "oklch(84% 0.00988 267.36)",
+          "oklch(95% 0.00988 267.36)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Workspace heading",
+        "purpose": "Condensed main heading; smaller on tablet and mobile."
+      },
+      "title": {
+        "displayName": "Inspector title",
+        "purpose": "Section headings in the light inspector."
+      },
+      "body": {
+        "displayName": "Workspace explanation",
+        "purpose": "Short explanation immediately below the main heading."
+      },
+      "label": {
+        "displayName": "Action label",
+        "purpose": "Shared framed and subtle button labels."
+      },
+      "brand": {
+        "displayName": "Wordmark",
+        "purpose": "Uppercase Neuroframe identity."
+      },
+      "reading": {
+        "displayName": "Method explanation",
+        "purpose": "Expanded explanatory paragraphs."
+      }
+    },
+    "shadows": [
+      {
+        "name": "toast",
+        "value": "0 6px 24px #14243126",
+        "purpose": "Transient bottom notification only; persistent panels are flat."
+      }
+    ],
+    "motion": [
+      {
+        "name": "control-color",
+        "value": "background-color 140ms, color 140ms, border-color 140ms",
+        "purpose": "Buttons, links, selects, and disclosure summary."
+      },
+      {
+        "name": "switch-thumb",
+        "value": "transform 160ms",
+        "purpose": "Anatomy switch thumb movement."
+      },
+      {
+        "name": "loading-turn",
+        "value": "5s linear infinite",
+        "purpose": "Loading icon rotation; disabled in error and reduced-motion states."
+      },
+      {
+        "name": "camera-preset",
+        "value": "1100ms; 1 - 2^(-10t), with final t=1 clamped to 1",
+        "purpose": "Front, oblique, and side camera presets. Duration becomes 1ms with reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "wide-min",
+        "value": "1600px"
+      },
+      {
+        "name": "compact-max",
+        "value": "1100px"
+      },
+      {
+        "name": "tablet-max",
+        "value": "800px"
+      },
+      {
+        "name": "mobile-max",
+        "value": "520px"
+      },
+      {
+        "name": "embodied-wrap-max",
+        "value": "1200px"
+      },
+      {
+        "name": "embodied-inspector-max",
+        "value": "1000px"
+      },
+      {
+        "name": "embodied-stack-max",
+        "value": "640px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Cobalt framed action used for asset recovery.",
+      "html": "<button class=\"ds-root ds-primary\">Reload assets</button>",
+      "css": ".ds-primary {display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:Barlow,sans-serif;cursor:pointer;transition:background-color 140ms,color 140ms,border-color 140ms; min-height:36px;padding:0 12px;border:1px solid var(--accent,#2457df);border-radius:6px;background:var(--accent,#2457df);color:white;font-size:13px;font-weight:500;} .ds-primary:hover {background:var(--accent-dark,#1744bd);border-color:#b2bfd3;} .ds-root :focus-visible, .ds-root:focus-visible { outline: 3px solid #6d92f0; outline-offset: 3px; } .ds-root button:disabled, .ds-root input:disabled, .ds-root select:disabled, .ds-root:disabled { opacity: .45; cursor: wait; } @media (prefers-reduced-motion: reduce) { .ds-root, .ds-root * { transition: none !important; animation: none !important; } }"
+    },
+    {
+      "name": "Subtle action",
+      "kind": "button",
+      "refersTo": "button-subtle",
+      "description": "Quiet header action that gains a pale hover surface.",
+      "html": "<button class=\"ds-root ds-subtle\" aria-label=\"Save image\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5\"/></svg><span>Save image</span></button>",
+      "css": ".ds-subtle {display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:Barlow,sans-serif;cursor:pointer;transition:background-color 140ms,color 140ms,border-color 140ms;min-height:36px;padding:0 12px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--ink,#242c34);font-size:13px;font-weight:500;} .ds-subtle:hover:not(:disabled) {background:#e8edf5;border-color:#b2bfd3;} .ds-root :focus-visible, .ds-root:focus-visible { outline: 3px solid #6d92f0; outline-offset: 3px; } .ds-root button:disabled, .ds-root input:disabled, .ds-root select:disabled, .ds-root:disabled { opacity: .45; cursor: wait; } @media (prefers-reduced-motion: reduce) { .ds-root, .ds-root * { transition: none !important; animation: none !important; } }"
+    },
+    {
+      "name": "Playback button",
+      "kind": "button",
+      "refersTo": "button-play",
+      "description": "Square cobalt transport control.",
+      "html": "<button class=\"ds-root ds-play\" aria-label=\"Play frames\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m8 5 11 7-11 7Z\"/></svg></button>",
+      "css": ".ds-play {display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:Barlow,sans-serif;cursor:pointer;transition:background-color 140ms,color 140ms,border-color 140ms;height:40px;width:40px;border:0;border-radius:7px;background:var(--accent,#2457df);color:white;} .ds-play svg {width:19px;height:19px;} .ds-play:hover:not(:disabled) {background:var(--accent-dark,#1744bd);} .ds-root :focus-visible, .ds-root:focus-visible { outline: 3px solid #6d92f0; outline-offset: 3px; } .ds-root button:disabled, .ds-root input:disabled, .ds-root select:disabled, .ds-root:disabled { opacity: .45; cursor: wait; } @media (prefers-reduced-motion: reduce) { .ds-root, .ds-root * { transition: none !important; animation: none !important; } }"
+    },
+    {
+      "name": "Reveal action",
+      "kind": "button",
+      "refersTo": "button-reveal",
+      "description": "Pale, prominent action against the charcoal stage.",
+      "html": "<div class=\"ds-root ds-reveal-stage\"><button class=\"ds-reveal\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m12 3 9 5v8l-9 5-9-5V8Z\"/><path d=\"m3 8 9 5 9-5M12 13v8M12 3v10\"/></svg><span>Reveal the depth</span><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14m-5-5 5 5-5 5\"/></svg></button></div>",
+      "css": ".ds-reveal-stage {background:var(--stage,#101619);padding:20px;border-radius:var(--radius,12px);} .ds-reveal {display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:Barlow,sans-serif;cursor:pointer;transition:background-color 140ms,color 140ms,border-color 140ms;min-height:42px;padding:0 15px;background:#f0f3f4;color:#202d34;border:0;border-radius:6px;font-size:13px;font-weight:600;gap:10px;} .ds-reveal svg {width:17px;height:17px;} .ds-reveal:hover:not(:disabled) {background:#cbdafa;color:#1a409a;} .ds-root :focus-visible, .ds-root:focus-visible { outline: 3px solid #6d92f0; outline-offset: 3px; } .ds-root button:disabled, .ds-root input:disabled, .ds-root select:disabled, .ds-root:disabled { opacity: .45; cursor: wait; } @media (prefers-reduced-motion: reduce) { .ds-root, .ds-root * { transition: none !important; animation: none !important; } }"
+    },
+    {
+      "name": "Viewport navigation",
+      "kind": "nav",
+      "refersTo": "viewport-navigation",
+      "description": "Dark camera toolbar with distinct hover and selected states.",
+      "html": "<div class=\"ds-root ds-nav\" role=\"group\" aria-label=\"Camera controls\"><button class=\"ds-view ds-selected\" title=\"Return to front view\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"4\" y=\"6\" width=\"16\" height=\"12\" rx=\"1\"/><path d=\"M8 3v3M16 3v3M8 18v3M16 18v3\"/></svg><span>Front</span></button><button class=\"ds-view\" aria-pressed=\"false\" title=\"Automatically rotate the brain\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M20 7v5h-5M4 17v-5h5\"/><path d=\"M6.1 7a7 7 0 0 1 11.6-1L20 9M4 15l2.3 3A7 7 0 0 0 18 17\"/></svg><span>Orbit</span></button><span class=\"ds-divider\"></span><button class=\"ds-view ds-icon\" aria-label=\"Toggle fullscreen\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5\"/></svg></button></div>",
+      "css": ".ds-nav {display:inline-flex;align-items:center;gap:3px;background:#182024;padding:3px;border-radius:7px;} .ds-view {display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:Barlow,sans-serif;cursor:pointer;transition:background-color 140ms,color 140ms,border-color 140ms;min-height:32px;padding:0 9px;border:0;border-radius:4px;color:#b6c4cc;background:transparent;font-size:12px;gap:5px;} .ds-view svg {width:16px;height:16px;} .ds-view:hover:not(:disabled) {color:white;background:#2b373e;} .ds-view.ds-selected {color:white;background:#35424a;} .ds-view.ds-icon {width:32px;padding:0;} .ds-divider {width:1px;height:18px;background:#3c474d;margin:0 3px;} .ds-root :focus-visible, .ds-root:focus-visible { outline: 3px solid #6d92f0; outline-offset: 3px; } .ds-root button:disabled, .ds-root input:disabled, .ds-root select:disabled, .ds-root:disabled { opacity: .45; cursor: wait; } @media (prefers-reduced-motion: reduce) { .ds-root, .ds-root * { transition: none !important; animation: none !important; } }"
+    },
+    {
+      "name": "Clip selector",
+      "kind": "input",
+      "refersTo": "clip-select",
+      "description": "Labeled native select in the light inspector.",
+      "html": "<label class=\"ds-root ds-field\">Dataset clip<select class=\"ds-select\"><option>Crossfire</option><option>Courtyard</option></select></label>",
+      "css": ".ds-field {display:block;font:500 11px Barlow,sans-serif;color:#5a6875;} .ds-select {display:block;margin-top:6px;width:100%;height:36px;padding:0 9px;background:var(--paper,#f8f9fa);border:1px solid #cbd2dc;border-radius:5px;color:#293944;font:400 13px Barlow,sans-serif;cursor:pointer;transition:background-color 140ms,color 140ms,border-color 140ms;} .ds-root :focus-visible, .ds-root:focus-visible { outline: 3px solid #6d92f0; outline-offset: 3px; } .ds-root button:disabled, .ds-root input:disabled, .ds-root select:disabled, .ds-root:disabled { opacity: .45; cursor: wait; } @media (prefers-reduced-motion: reduce) { .ds-root, .ds-root * { transition: none !important; animation: none !important; } }"
+    },
+    {
+      "name": "Display range",
+      "kind": "input",
+      "refersTo": "range",
+      "description": "Labeled range with stable output and a cobalt-ringed thumb.",
+      "html": "<label class=\"ds-root ds-range-label\"><span class=\"ds-range-heading\"><span>Brightness</span><output>1.30\u00d7</output></span><input class=\"ds-range\" type=\"range\" min=\"0.4\" max=\"3\" step=\"0.05\" value=\"1.3\" aria-label=\"Brightness\"/></label>",
+      "css": ".ds-range-label {display:block;font:400 12px Barlow,sans-serif;color:#485966;} .ds-range-heading {display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;} .ds-range-heading output {font-size:11px;font-variant-numeric:tabular-nums;color:#52697d;} .ds-range {appearance:none;-webkit-appearance:none;width:100%;height:20px;margin:0;background:transparent;accent-color:var(--accent,#2457df);cursor:pointer;} .ds-range::-webkit-slider-runnable-track {height:3px;background:#cbd3df;border-radius:2px;} .ds-range::-moz-range-track {height:3px;background:#cbd3df;border-radius:2px;} .ds-range::-webkit-slider-thumb {-webkit-appearance:none;width:12px;height:12px;border-radius:50%;border:2px solid var(--accent,#2457df);background:var(--paper,#f8f9fa);margin-top:-4.5px;} .ds-range::-moz-range-thumb {width:9px;height:9px;border:2px solid var(--accent,#2457df);border-radius:50%;background:var(--paper,#f8f9fa);} .ds-root :focus-visible, .ds-root:focus-visible { outline: 3px solid #6d92f0; outline-offset: 3px; } .ds-root button:disabled, .ds-root input:disabled, .ds-root select:disabled, .ds-root:disabled { opacity: .45; cursor: wait; } @media (prefers-reduced-motion: reduce) { .ds-root, .ds-root * { transition: none !important; animation: none !important; } }"
+    },
+    {
+      "name": "Dataset tag",
+      "kind": "chip",
+      "refersTo": "dataset-tag",
+      "description": "Small, quiet provenance tag; no interactive state.",
+      "html": "<span class=\"ds-tag\">Dataset</span>",
+      "css": ".ds-tag {display:inline-block;font:400 11px Barlow,sans-serif;color:#667583;padding:3px 6px;border:1px solid #d5dce3;border-radius:4px;}"
+    },
+    {
+      "name": "Inspector panel",
+      "kind": "card",
+      "refersTo": "inspector",
+      "description": "Flat paper container with compact section hierarchy.",
+      "html": "<aside class=\"ds-inspector\"><div class=\"ds-section-heading\"><h2>The source frame</h2><span class=\"ds-tag\">Dataset</span></div><p class=\"ds-note\">Frame colors are sampled onto individual branch points.</p><details class=\"ds-method\"><summary>What am I looking at?</summary><p>Real anatomy. Projected color.</p></details></aside>",
+      "css": ".ds-inspector {background:var(--paper,#f8f9fa);color:var(--ink,#242c34);border-radius:var(--radius,12px);padding:21px 20px 0;font-family:Barlow,sans-serif;} .ds-section-heading {display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:16px;} .ds-section-heading h2 {margin:0;font-size:17px;font-weight:600;line-height:1.3;} .ds-tag {font-size:11px;color:#667583;padding:3px 6px;border:1px solid #d5dce3;border-radius:4px;} .ds-note {margin:7px 0 0;color:#687681;font-size:11px;line-height:1.5;min-height:34px;} .ds-method {border-top:1px solid var(--line,#d7dce2);margin-top:13px;} .ds-method summary {padding:17px 0;font-size:12px;font-weight:500;cursor:pointer;transition:background-color 140ms,color 140ms,border-color 140ms;} .ds-method p {padding-bottom:20px;font-size:12px;line-height:1.55;color:#576977;} .ds-method summary:focus-visible {outline:3px solid #6d92f0;outline-offset:3px;} @media(prefers-reduced-motion:reduce){.ds-method summary{transition:none;}}"
+    },
+    {
+      "name": "Segmented choice",
+      "kind": "custom",
+      "refersTo": "segment",
+      "description": "Compact pattern choices with paper selected state and cobalt text.",
+      "html": "<div class=\"ds-root ds-segments\" role=\"group\" aria-label=\"Display input\"><button class=\"ds-segment\" aria-pressed=\"true\">DOOM</button><button class=\"ds-segment\" aria-pressed=\"false\">Checkerboard</button><button class=\"ds-segment\" aria-pressed=\"false\">Solid</button></div>",
+      "css": ".ds-segments {display:flex;gap:3px;background:#e9edf2;border-radius:5px;padding:3px;} .ds-segment {display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:Barlow,sans-serif;cursor:pointer;transition:background-color 140ms,color 140ms,border-color 140ms;flex:1;min-height:28px;border:0;border-radius:3px;background:transparent;color:#596976;font-size:11px;font-weight:500;padding:0 4px;white-space:nowrap;} .ds-segment[aria-pressed=\"true\"] {background:var(--paper,#f8f9fa);color:var(--accent,#2457df);} .ds-segment:hover:not(:disabled) {color:var(--accent,#2457df);background:#f2f5fc;} .ds-root :focus-visible, .ds-root:focus-visible { outline: 3px solid #6d92f0; outline-offset: 3px; } .ds-root button:disabled, .ds-root input:disabled, .ds-root select:disabled, .ds-root:disabled { opacity: .45; cursor: wait; } @media (prefers-reduced-motion: reduce) { .ds-root, .ds-root * { transition: none !important; animation: none !important; } }"
+    },
+    {
+      "name": "Experiment navigation",
+      "kind": "nav",
+      "description": "Two-page links on the embodied header; the current page has cobalt text and an underline.",
+      "html": "<nav class=\"ds-experiment-nav\" aria-label=\"Experiments\"><a href=\"/\">Projected image</a><a href=\"/embodied.html\" aria-current=\"page\">Neural activity + body</a></nav>",
+      "css": ".ds-experiment-nav{display:flex;align-items:center;gap:24px;margin-left:auto;font:400 14px Barlow,sans-serif;background:var(--paper,#f8f9fa);}.ds-experiment-nav a{color:var(--muted,#616d79);padding:24px 0 21px;border-bottom:3px solid transparent;text-decoration:none;transition:background-color 140ms,color 140ms,border-color 140ms;}.ds-experiment-nav a:hover{color:var(--accent-dark,#1744bd);}.ds-experiment-nav a[aria-current]{color:var(--accent,#2457df);border-color:var(--accent,#2457df);}.ds-experiment-nav a:focus-visible{outline:3px solid #6d92f0;outline-offset:3px;}@media(max-width:640px){.ds-experiment-nav{gap:12px;font-size:11px;}.ds-experiment-nav a{padding:20px 0;}.ds-experiment-nav a:first-child{display:none;}}@media(prefers-reduced-motion:reduce){.ds-experiment-nav a{transition:none;}}"
+    },
+    {
+      "name": "Specimen viewpoint menu",
+      "kind": "input",
+      "refersTo": "clip-select",
+      "description": "Dark native brain-viewpoint select: Image close-up is the default, followed by Full brain, Angled view, and Side view. The body retains its own menu.",
+      "html": "<select class=\"ds-viewpoint\" aria-label=\"Brain viewpoint\"><option value=\"image\">Image close-up</option><option value=\"full\">Full brain</option><option value=\"oblique\">Angled view</option><option value=\"side\">Side view</option></select>",
+      "css": ".ds-viewpoint{pointer-events:auto;background:#263239;color:#e0eaf0;border:1px solid #53626b;border-radius:6px;min-height:36px;max-width:125px;padding:0 8px;font:400 12px Barlow,sans-serif;cursor:pointer;transition:background-color 140ms,color 140ms,border-color 140ms;}.ds-viewpoint:focus-visible{outline:3px solid #6d92f0;outline-offset:3px;}.ds-viewpoint:disabled{opacity:.45;cursor:wait;}@media(prefers-reduced-motion:reduce){.ds-viewpoint{transition:none;}}"
+    },
+    {
+      "name": "Paired specimen layout",
+      "kind": "custom",
+      "description": "Brain and body occupy equal dark fields with independent titles and captions. The default brain image uses density-normalized whole-neuron spike activity; the live app supplies WebGL content to these canvas slots.",
+      "html": "<div class=\"ds-paired-stage\"><section class=\"ds-neural-stage\"><h2 class=\"ds-stage-title\">The brain</h2><canvas class=\"ds-specimen-slot\" role=\"img\" aria-label=\"Brain specimen canvas slot\"></canvas><p class=\"ds-stage-caption\"><strong>Image from synaptic spikes</strong><span>Whole-neuron activity \u00b7 density-normalized anatomy</span></p></section><section class=\"ds-body-stage\"><h2 class=\"ds-stage-title\">The body</h2><canvas class=\"ds-specimen-slot\" role=\"img\" aria-label=\"Body specimen canvas slot\"></canvas><p class=\"ds-stage-caption\">NeuroMechFly / MuJoCo \u00b7 physical joints and contact<span>Neural outputs drive a CPG controller</span></p></section></div>",
+      "css": ".ds-paired-stage{position:relative;display:grid;grid-template-columns:1fr 1fr;height:clamp(460px,59vh,740px);background:var(--stage,#101619);border-radius:var(--radius,12px);overflow:hidden;font-family:Barlow,sans-serif;}.ds-neural-stage,.ds-body-stage{position:relative;min-width:0;overflow:hidden;}.ds-neural-stage{border-right:1px solid #34414a;}.ds-stage-title{position:absolute;z-index:2;top:20px;left:20px;right:16px;margin:0;color:#edf2f5;font-size:17px;font-weight:600;line-height:1.3;pointer-events:none;}.ds-specimen-slot{position:absolute;inset:0;width:100%;height:100%;}.ds-stage-caption{position:absolute;bottom:20px;left:20px;right:16px;margin:0;color:#e5edf2;font-size:12px;line-height:1.5;pointer-events:none;}.ds-stage-caption span{display:block;color:#aebfc9;font-size:11px;}@media(max-width:1200px){.ds-paired-stage{height:490px;}}@media(max-width:1000px){.ds-paired-stage{height:520px;}}@media(max-width:640px){.ds-paired-stage{grid-template-columns:1fr;grid-template-rows:1fr 1fr;height:710px;}.ds-neural-stage{border-right:0;border-bottom:1px solid #34414a;}.ds-stage-title{top:16px;left:16px;}.ds-stage-caption{left:16px;bottom:14px;}}"
+    },
+    {
+      "name": "Simulation statistics and neural output",
+      "kind": "custom",
+      "description": "Simulation throughput and render FPS remain separately labeled; firing-rate readouts use tabular numerals and native meters.",
+      "html": "<div class=\"ds-model-output\"><div class=\"ds-experiment-stats\"><span><strong>\u2014</strong> neurons simulated</span><span><strong>\u2014</strong> weighted connections</span><span><strong>\u2014</strong>\u00d7 real time</span><span><strong>\u2014</strong> render FPS</span></div><section class=\"ds-readout\" aria-label=\"Measured model output\"><div class=\"ds-readout-heading\"><h2>Signals leaving the brain</h2><span>Waiting for spikes</span></div><div class=\"ds-readout-grid\"><div><span>DNa02 \u00b7 left steering</span><strong>0.0 Hz</strong><meter min=\"0\" max=\"200\" value=\"0\" aria-label=\"Left DNa02 firing rate\"></meter></div><div><span>DNa02 \u00b7 right steering</span><strong>0.0 Hz</strong><meter min=\"0\" max=\"200\" value=\"0\" aria-label=\"Right DNa02 firing rate\"></meter></div><div><span>DNp09 \u00b7 forward drive</span><strong>0.0 Hz</strong><meter min=\"0\" max=\"200\" value=\"0\" aria-label=\"DNp09 firing rate\"></meter></div><div><span>MDN \u00b7 backward drive</span><strong>0.0 Hz</strong><meter min=\"0\" max=\"200\" value=\"0\" aria-label=\"MDN firing rate\"></meter></div></div></section></div>",
+      "css": ".ds-model-output{font-family:Barlow,sans-serif;color:var(--ink,#242c34);}.ds-experiment-stats{display:flex;gap:20px;flex-wrap:wrap;padding:12px 0;font-size:12px;color:var(--muted,#616d79);}.ds-experiment-stats strong{color:var(--ink,#242c34);font-weight:500;}.ds-experiment-stats span:nth-child(3){margin-left:auto;}.ds-readout{margin-top:25px;padding-top:20px;border-top:1px solid var(--line,#d7dce2);}.ds-readout-heading{display:flex;justify-content:space-between;align-items:baseline;gap:15px;}.ds-readout-heading h2{margin:0;font-size:16px;font-weight:600;line-height:1.3;}.ds-readout-heading>span{font-size:11px;color:var(--muted,#616d79);font-variant-numeric:tabular-nums;}.ds-readout-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:22px;margin-top:18px;}.ds-readout-grid>div{display:flex;flex-direction:column;gap:7px;}.ds-readout-grid span{font-size:11px;color:var(--muted,#616d79);}.ds-readout-grid strong{font-size:18px;font-weight:500;font-variant-numeric:tabular-nums;}.ds-readout-grid meter{width:100%;height:6px;}.ds-readout-grid meter::-webkit-meter-bar{background:#cbd3df;border:none;}.ds-readout-grid meter::-webkit-meter-optimum-value{background:var(--accent,#2457df);}@media(max-width:1200px){.ds-experiment-stats{gap:8px 14px;}.ds-experiment-stats span:nth-child(3){margin-left:0;}.ds-readout-heading{align-items:flex-start;flex-direction:column;gap:7px;}}@media(max-width:640px){.ds-readout-grid{grid-template-columns:1fr 1fr;gap:20px;}}"
+    },
+    {
+      "name": "Causal intervention controls",
+      "kind": "custom",
+      "description": "Native cobalt checkboxes and a separate framed pulse action preserve the distinction between two ongoing interventions and a positive-control pulse.",
+      "html": "<section class=\"ds-causal-controls\"><h2>Test the connection</h2><label class=\"ds-check-row\"><input type=\"checkbox\" checked/><span>Synaptic transmission</span></label><label class=\"ds-check-row\"><input type=\"checkbox\" checked/><span>Video stimulation</span></label><button class=\"ds-pulse\">Pulse forward command neurons</button><p class=\"ds-control-help\">The pulse directly stimulates DNp09 for 150 simulated ms. It is a separate positive control, independent of the video.</p></section>",
+      "css": ".ds-causal-controls{padding-top:22px;border-top:1px solid var(--line,#d7dce2);font-family:Barlow,sans-serif;color:var(--ink,#242c34);}.ds-causal-controls h2{margin:0 0 18px;font-size:17px;font-weight:600;line-height:1.3;}.ds-check-row{display:flex;gap:10px;align-items:center;margin:15px 0;font-size:13px;cursor:pointer;}.ds-check-row input{accent-color:var(--accent,#2457df);width:17px;height:17px;}.ds-pulse{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:36px;border:1px solid var(--line,#d7dce2);background:var(--paper,#f8f9fa);border-radius:6px;padding:0 12px;color:var(--ink,#242c34);font:500 12px Barlow,sans-serif;width:100%;margin-top:8px;cursor:pointer;transition:background-color 140ms,color 140ms,border-color 140ms;}.ds-pulse:hover:not(:disabled){background:#e8edf5;border-color:#b2bfd3;}.ds-control-help{margin:10px 0 0;color:#687681;font-size:12px;line-height:1.5;min-height:34px;}.ds-causal-controls :focus-visible{outline:3px solid #6d92f0;outline-offset:3px;}.ds-causal-controls :disabled{opacity:.45;cursor:wait;}@media(prefers-reduced-motion:reduce){.ds-pulse{transition:none;}}"
+    },
+    {
+      "name": "External image controller",
+      "kind": "input",
+      "refersTo": "clip-select",
+      "description": "The existing native inspector field now defaults to Synaptic image controller while retaining the luminance and earlier 37-group modes. Help text explains the active control path.",
+      "html": "<div class=\"ds-controller-field\"><label class=\"ds-controller-label\" for=\"ds-controller\">External controller</label><select id=\"ds-controller\" class=\"ds-controller-select\"><option value=\"synaptic\">Synaptic image controller</option><option value=\"luminance\">Frame luminance \u2192 stimulation</option><option value=\"inverse\">Earlier 37-group controller</option></select><p class=\"ds-controller-help\">Feedback controls 8,534 upstream neurons. The 1,500 displayed neurons receive no direct stimulation.</p></div>",
+      "css": ".ds-controller-field{font-family:Barlow,sans-serif;}.ds-controller-label{display:block;margin-top:15px;margin-bottom:6px;font-size:11px;font-weight:500;color:#5a6875;}.ds-controller-select{width:100%;height:36px;padding:0 9px;background:var(--paper,#f8f9fa);border:1px solid #cbd2dc;border-radius:5px;color:#293944;font:400 13px Barlow,sans-serif;cursor:pointer;transition:background-color 140ms,color 140ms,border-color 140ms;}.ds-controller-select:focus-visible{outline:3px solid #6d92f0;outline-offset:3px;}.ds-controller-select:disabled{opacity:.45;cursor:wait;}.ds-controller-help{margin:10px 0 0;color:#687681;font-size:12px;line-height:1.5;min-height:34px;}@media(prefers-reduced-motion:reduce){.ds-controller-select{transition:none;}}"
+    },
+    {
+      "name": "Live specimen layout",
+      "kind": "custom",
+      "description": "Live-route variant: the brain field is wider than the body at desktop widths; both stack on mobile. Canvas slots are populated by the live app, using measured spike activity and the physical body.",
+      "html": "<div class=\"ds-live-pair ds-paired-stage\"><section class=\"ds-neural-stage\"><h2 class=\"ds-stage-title\">The brain</h2><canvas class=\"ds-specimen-slot\" role=\"img\" aria-label=\"Brain specimen canvas slot\"></canvas><p class=\"ds-stage-caption\"><strong>Light from simulated spikes</strong><span>18,901 neurons \u00b7 one fixed site each</span></p></section><section class=\"ds-body-stage\"><h2 class=\"ds-stage-title\">The body</h2><canvas class=\"ds-specimen-slot\" role=\"img\" aria-label=\"Body specimen canvas slot\"></canvas><p class=\"ds-stage-caption\">NeuroMechFly / MuJoCo<span>Descending neurons \u2192 gait controller \u2192 physics</span></p></section></div>",
+      "css": ".ds-paired-stage{position:relative;display:grid;grid-template-columns:1fr 1fr;height:clamp(460px,59vh,740px);background:var(--stage,#101619);border-radius:var(--radius,12px);overflow:hidden;font-family:Barlow,sans-serif;}.ds-neural-stage,.ds-body-stage{position:relative;min-width:0;overflow:hidden;}.ds-neural-stage{border-right:1px solid #34414a;}.ds-stage-title{position:absolute;z-index:2;top:20px;left:20px;right:16px;margin:0;color:#edf2f5;font-size:17px;font-weight:600;line-height:1.3;pointer-events:none;}.ds-specimen-slot{position:absolute;inset:0;width:100%;height:100%;}.ds-stage-caption{position:absolute;bottom:20px;left:20px;right:16px;margin:0;color:#e5edf2;font-size:12px;line-height:1.5;pointer-events:none;}.ds-stage-caption span{display:block;color:#aebfc9;font-size:11px;}@media(max-width:1200px){.ds-paired-stage{height:490px;}}@media(max-width:1000px){.ds-paired-stage{height:520px;}}@media(max-width:640px){.ds-paired-stage{grid-template-columns:1fr;grid-template-rows:1fr 1fr;height:710px;}.ds-neural-stage{border-right:0;border-bottom:1px solid #34414a;}.ds-stage-title{top:16px;left:16px;}.ds-stage-caption{left:16px;bottom:14px;}} .ds-live-pair{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);}@media(max-width:640px){.ds-live-pair{grid-template-columns:1fr;}}"
+    },
+    {
+      "name": "Local video source",
+      "kind": "input",
+      "description": "Native local-file input with labeled reference-preview slot and status text. The live app changes the preview label to distinguish completed neural frames from paused-source previews.",
+      "html": "<section class=\"ds-live-source\"><h2>Your stimulus</h2><div class=\"ds-live-monitor\"><canvas width=\"320\" height=\"240\" role=\"img\" aria-label=\"Video source supplied to the stimulation controller\"></canvas><span>YOUR CLIP</span></div><p class=\"ds-live-help\">Source preview \u00b7 0.00 s \u00b7 paused</p><label class=\"ds-live-label\" for=\"ds-live-file\">Or choose your own DOOM clip</label><input id=\"ds-live-file\" class=\"ds-live-file\" type=\"file\" accept=\"video/*\"/><p class=\"ds-live-help ds-file-status\" role=\"status\">Decoded on this computer. Your file is not uploaded.</p></section>",
+      "css": ".ds-live-source{font-family:Barlow,sans-serif;color:var(--ink,#242c34);}.ds-live-source h2{margin:0 0 16px;font-size:17px;font-weight:600;line-height:1.3;}.ds-live-monitor{position:relative;overflow:hidden;background:var(--stage,#101619);border-radius:5px;aspect-ratio:4/3;}.ds-live-monitor canvas{image-rendering:pixelated;}.ds-live-monitor>span{position:absolute;left:7px;bottom:7px;font-size:9px;background:#111b22e6;color:#d0dae0;padding:3px 5px;}.ds-live-label{display:block;margin-top:15px;margin-bottom:6px;font-size:11px;font-weight:500;color:#5a6875;}.ds-live-file{display:block;width:100%;font:400 12px/1.5 Barlow,sans-serif;color:var(--muted,#616d79);margin:8px 0 0;}.ds-live-file::file-selector-button{border:1px solid var(--line,#d7dce2);background:var(--paper,#f8f9fa);border-radius:var(--radius-button);padding:9px 10px;color:var(--ink,#242c34);font:inherit;margin-right:8px;cursor:pointer;}.ds-live-file:focus-visible{outline:3px solid #6d92f0;outline-offset:3px;}.ds-live-file:disabled{opacity:.45;cursor:wait;}.ds-live-help{margin:10px 0 0;color:#687681;font-size:12px;line-height:1.5;min-height:34px;}.ds-file-status{overflow-wrap:anywhere;}"
+    },
+    {
+      "name": "Live anatomical representation",
+      "kind": "input",
+      "refersTo": "clip-select",
+      "description": "Native representation select and fixed light-blur checkbox, reusing the inspector controls; these change the presentation of measured activity without source-image input.",
+      "html": "<section class=\"ds-live-representation\"><label class=\"ds-live-label\" for=\"ds-live-representation\">Anatomical display</label><select id=\"ds-live-representation\" class=\"ds-live-select\"><option value=\"sites\">Fixed observation sites</option><option value=\"branches\">All sampled branches</option></select><p class=\"ds-live-help\">Each marker sits on a real neuron and uses that neuron's own spike history. Sites were selected once for coverage, independently of the video. The branch view reveals the same activity across each whole arbor.</p><label class=\"ds-live-check\"><input type=\"checkbox\" checked/><span>Soften point speckle</span></label><p class=\"ds-live-help\">A small, fixed blur of the emitted light. Turn it off to inspect individual sites.</p></section>",
+      "css": ".ds-live-representation{font-family:Barlow,sans-serif;color:var(--ink,#242c34);}.ds-live-label{display:block;margin-top:15px;margin-bottom:6px;font-size:11px;font-weight:500;color:#5a6875;}.ds-live-select{width:100%;height:36px;padding:0 9px;background:var(--paper,#f8f9fa);border:1px solid #cbd2dc;border-radius:5px;color:#293944;font:400 13px Barlow,sans-serif;cursor:pointer;transition:background-color 140ms,color 140ms,border-color 140ms;}.ds-live-check{display:flex;gap:10px;align-items:center;margin:15px 0;font-size:13px;cursor:pointer;}.ds-live-check input{accent-color:var(--accent,#2457df);width:17px;height:17px;}.ds-live-help{margin:10px 0 0;color:#687681;font-size:12px;line-height:1.5;min-height:34px;}.ds-live-representation :focus-visible{outline:3px solid #6d92f0;outline-offset:3px;}.ds-live-representation :disabled{opacity:.45;cursor:wait;}@media(prefers-reduced-motion:reduce){.ds-live-select{transition:none;}}"
+    },
+    {
+      "name": "Live processing readouts",
+      "kind": "custom",
+      "description": "Separate live neural throughput, capture-to-display-submission latency, model-time ratio, and target dimensions. Placeholders indicate unavailable measurements; no performance value is a design token.",
+      "html": "<div class=\"ds-live-stats\"><span><strong>\u2014</strong> new neural frames/s</span><span><strong>\u2014</strong> ms processing latency</span><span><strong>\u2014</strong>\u00d7 model time</span><span><strong>\u2014</strong> target pixels</span></div>",
+      "css": ".ds-live-stats{display:flex;flex-wrap:wrap;gap:10px 20px;height:auto;min-height:42px;padding:8px 0;font:400 12px Barlow,sans-serif;color:var(--muted,#616d79);}.ds-live-stats strong{color:var(--ink,#242c34);font-weight:500;}.ds-live-stats span:nth-child(3){margin-left:auto;}@media(max-width:1200px){.ds-live-stats span:nth-child(3){margin-left:0;}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Film Viewing Table",
+    "overview": "The film viewing table is a quiet instrument around a vivid specimen. A pale grey surround holds the charcoal image field, source monitor, and compact controls. Barlow Condensed gives the identity and main heading a narrow, purposeful voice; Barlow keeps the working interface legible.\n\nThe visual hierarchy comes from scale and material contrast. The anatomy occupies the largest area, while cobalt marks transport, selection, and links. The source remains visibly separate from the anatomical display. Flat panels and restrained rules organize the workspace without competing with the image.",
+    "keyCharacteristics": [
+      "Pale instrument surround and charcoal image field.",
+      "Cobalt for transport, selection, and interactive emphasis.",
+      "Condensed identity lettering with compact Barlow controls.",
+      "Pixel-preserving source imagery and a geometry-led main view.",
+      "Flat panels, small control radii, and explicit keyboard focus."
+    ],
+    "rules": [
+      {
+        "name": "The Instrument Accent Rule",
+        "body": "Use cobalt for actionable or selected interface states; allow source imagery and anatomy colors to carry their own content palette.",
+        "section": "colors"
+      },
+      {
+        "name": "The Stable Readout Rule",
+        "body": "Use tabular numerals for frame, time, angle, and measured-value readouts so changing values do not shift the interface.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Surface Rule",
+        "body": "Separate persistent surfaces with tone, spacing, and fine rules. Reserve the existing shadow treatment for the transient toast.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep the image field visually dominant and its source preview explicitly labeled.",
+      "Do use the established Barlow pairing and compact, tabular numeric readouts.",
+      "Do preserve visible keyboard focus and accessible names when mobile controls hide their text.",
+      "Do preserve source aspect and pixel edges when presenting dataset frames.",
+      "Do respect reduced-motion preferences for initial playback, interface transitions, and camera changes."
+    ],
+    "donts": [
+      "Don't apply UI cobalt to replace the source image or false-color anatomy palette.",
+      "Don't add card shadows to the persistent viewing table or inspector.",
+      "Don't stretch source imagery to fill the monitor or conceal empty regions in the anatomical display.",
+      "Don't replace the implemented inline stroke icons with emoji or icon-font glyphs."
+    ]
+  }
+}

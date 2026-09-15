@@ -1,0 +1,26 @@
+{
+  "name": "neuroframe",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "npm run test:neural && playwright test",
+    "test:neural": "node --test tests/neural.test.ts tests/synaptic.test.ts tests/live-measurements.test.ts",
+    "dev:full": "node scripts/start_full.mjs"
+  },
+  "dependencies": {
+    "@fontsource/barlow": "^5.2.8",
+    "@fontsource/barlow-condensed": "^5.2.8",
+    "three": "0.186.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.0",
+    "@types/three": "^0.183.0",
+    "@webgpu/types": "^0.1.72",
+    "typescript": "^5.9.3",
+    "vite": "8.3.0"
+  }
+}

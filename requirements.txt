@@ -1,6 +1,7 @@
 # Genie 1 model components for DOOM video. Python 3.10+.
 torch>=2.7
-numpy>=1.26
+# Support PyTorch builds compiled against the NumPy 1.x ABI.
+numpy>=1.26,<2
 Pillow>=10.0
 # 0.8.1 has Python 3.10 wheels; newer releases require Python 3.11+.
 array-record>=0.8.1,<0.9

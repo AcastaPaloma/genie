@@ -12,3 +12,6 @@ data/
 /test_*.py
 vae_latest_best.pt
 .gstack/
+
+# Generated local ViZDoom settings
+/_vizdoom.ini

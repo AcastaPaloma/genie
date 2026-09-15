@@ -38,8 +38,25 @@ class Cookbook(nn.Module):
         codebook_loss = F.mse_loss(quantized.float(), flat.detach().float())
         commitment_loss = F.mse_loss(flat.float(), quantized.detach().float())
         loss = codebook_loss + self.beta * commitment_loss
-        z_q = flat + (quantized.to(flat.dtype) - flat).detach()
+        # Forward must equal the selected code even when features are much larger
+        # than codes. flat + (code-flat).detach() loses tiny codes to cancellation
+        # under BF16 (and even float32 for sufficiently different magnitudes).
+        # The exactly-zero term preserves the identity gradient to the encoder.
+        z_q = quantized.to(flat.dtype).detach() + (flat - flat.detach())
         return z_q.reshape(*leading, self.code_width), idx.reshape(*leading), loss
+
+    @torch.no_grad()
+    def initialize_from_data(self, features):
+        """Seed codes from encoder features before optimization begins.
+
+        Call on rank zero before DDP broadcasts model weights. Sampling is
+        deterministic and leaves optimizer-based VQ updates unchanged.
+        """
+        if features.shape[-1] != self.code_width or features.numel() == 0:
+            raise ValueError("Expected nonempty encoder features with matching code width")
+        flat = features.detach().reshape(-1, self.code_width)
+        indices = torch.linspace(0, len(flat) - 1, self.K, device=flat.device).long()
+        self.cookbook.weight.copy_(flat[indices].to(self.cookbook.weight))
 
     @torch.no_grad()
     def usage(self, idx):

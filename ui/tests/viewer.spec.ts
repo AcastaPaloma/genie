@@ -1,0 +1,87 @@
+import { test, expect } from '@playwright/test';
+import fs from 'node:fs';
+import path from 'node:path';
+
+const screenshots = path.resolve('.cache/screenshots');
+fs.mkdirSync(screenshots, { recursive: true });
+
+test('real anatomy, playback, fixed projection, inspection modes and export', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
+  await page.goto('/projection.html');
+  await expect(page.locator('#app')).toHaveAttribute('data-ready', 'true');
+  await expect(page.locator('#app')).toHaveAttribute('data-points', '768000');
+  await page.getByRole('button', { name: 'Pause playback', exact: true }).click();
+  await page.locator('#seek').fill('52');
+  const sourceBefore = await page.locator('#source-frame').evaluate((node: HTMLCanvasElement) => node.toDataURL());
+  await expect(page.locator('#app')).toHaveAttribute('data-frame', '52');
+  await page.screenshot({ path: path.join(screenshots, 'desktop-front.png'), fullPage: true });
+  const front = await page.locator('#brain-canvas canvas').evaluate((node: HTMLCanvasElement) => node.toDataURL());
+  await page.getByRole('button', { name: 'Reveal the depth', exact: true }).click();
+  await expect(page.locator('#angle-label')).not.toHaveText('0°');
+  await expect.poll(async () => Number((await page.locator('#angle-label').innerText()).replace('°', ''))).toBeGreaterThan(50);
+  await page.screenshot({ path: path.join(screenshots, 'desktop-depth.png'), fullPage: true });
+  const rotated = await page.locator('#brain-canvas canvas').evaluate((node: HTMLCanvasElement) => node.toDataURL());
+  expect(rotated).not.toBe(front);
+  expect(await page.locator('#source-frame').evaluate((node: HTMLCanvasElement) => node.toDataURL())).toBe(sourceBefore);
+  await page.getByRole('button', { name: 'Return to front', exact: true }).click();
+  await expect(page.locator('#app')).toHaveAttribute('data-view', 'front');
+  await page.getByRole('button', { name: 'Show anatomy only', exact: true }).click();
+  await expect(page.locator('#app')).toHaveAttribute('data-mode', 'anatomy');
+  await page.screenshot({ path: path.join(screenshots, 'desktop-anatomy.png'), fullPage: true });
+  await page.getByRole('button', { name: 'Show anatomy only', exact: true }).click();
+  await page.getByRole('button', { name: 'Checkerboard', exact: true }).click();
+  await expect(page.locator('#app')).toHaveAttribute('data-pattern', 'checker');
+  expect(await page.locator('#source-frame').evaluate((node: HTMLCanvasElement) => node.toDataURL())).not.toBe(sourceBefore);
+  await page.getByRole('button', { name: 'DOOM', exact: true }).click();
+  await page.getByRole('button', { name: 'Grayscale', exact: true }).click();
+  await expect(page.locator('#app')).toHaveAttribute('data-mode', 'grayscale');
+  await page.getByRole('button', { name: 'Reset display settings', exact: true }).click();
+  await expect(page.locator('#app')).toHaveAttribute('data-mode', 'rgb');
+  await page.locator('#clip-select').selectOption('doom-12');
+  await expect(page.locator('#clip-location')).toHaveText('Test record 12');
+  await expect(page.locator('#app')).toHaveAttribute('data-frame', '0');
+  await page.getByRole('button', { name: 'Play frames', exact: true }).click();
+  await expect.poll(() => page.locator('#app').getAttribute('data-frame')).not.toBe('0');
+  await page.getByRole('button', { name: 'Pause playback', exact: true }).click();
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Save image', exact: true }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/^neuroframe-doom-12-frame-\d+\.png$/);
+  await download.saveAs(path.join(screenshots, 'exported-brain.png'));
+  expect(fs.statSync(path.join(screenshots, 'exported-brain.png')).size).toBeGreaterThan(20000);
+  await page.getByRole('link', { name: 'How it works', exact: true }).click();
+  await expect(page.locator('#method')).toHaveAttribute('open', '');
+  await expect(page.locator('#method')).toContainText('not simulated activity');
+  expect(errors).toEqual([]);
+});
+
+test('mobile fits the viewport and respects reduced motion', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/projection.html');
+  await expect(page.locator('#app')).toHaveAttribute('data-ready', 'true');
+  await expect(page.locator('#app')).toHaveAttribute('data-playing', 'false');
+  await expect(page.locator('#app')).toHaveAttribute('data-frame', '0');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await expect(page.getByRole('button', { name: 'Save image', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'How it works', exact: true })).toBeVisible();
+  await page.screenshot({ path: path.join(screenshots, 'mobile.png'), fullPage: true });
+  await page.getByRole('button', { name: 'Reveal the depth', exact: true }).click();
+  await expect(page.locator('#app')).toHaveAttribute('data-view', 'orbit');
+  await page.getByRole('button', { name: 'Return to front', exact: true }).click();
+  await expect(page.locator('#app')).toHaveAttribute('data-view', 'front');
+});
+
+test('failed data loading shows a recovery action', async ({ page }) => {
+  await page.route('**/data/brain.json', (route) => route.fulfill({ status: 503, body: 'Unavailable' }));
+  await page.goto('/projection.html');
+  await expect(page.locator('#app')).toHaveAttribute('data-ready', 'error');
+  await expect(page.getByRole('button', { name: 'Reload assets', exact: true })).toBeVisible();
+  await expect(page.locator('#play')).toBeDisabled();
+  await page.unroute('**/data/brain.json');
+  await page.getByRole('button', { name: 'Reload assets', exact: true }).click();
+  await expect(page.locator('#app')).toHaveAttribute('data-ready', 'true');
+});
