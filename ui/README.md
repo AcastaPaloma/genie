@@ -26,6 +26,22 @@ The native MuJoCo service binds only to `127.0.0.1:8769`, retains the same 3.9.0
 The interface fails explicitly if the complete data or GPU resources are missing.
 Local files are decoded on the computer and are not uploaded.
 
+## Regions
+
+The main view draws the **central brain**: every released neuron except the optic
+lobes (super_class `optic`) and the photoreceptor afferents (R1-6, R7, R8, ocellar
+retinula cells). That is 50,328 of the 139,255 neurons and 169,589,408 of the
+268,278,432 vertices, selected by published annotation, never by a coordinate cut.
+The two optic lobes are dense enough to fill the frame and hide the central
+neuropil, which is why they are withheld by default.
+
+Withholding is a **display** choice. The complete archive is still downloaded,
+checksummed and uploaded, every neuron is still simulated with all its measured
+connections, and withheld neurons keep spiking; they are simply not drawn and
+contribute no light. `?region=all` draws the complete brain and `?region=optic`
+draws only the lobes. Membership is measured by
+`scripts/prepare_brain_regions.py` into `regions.json`.
+
 ## Use the full brain
 
 The initial view uses **labelled static anatomy inspection** so inactive branches
@@ -50,6 +66,87 @@ Disable synaptic transmission, reset, then play to test causality. Directly
 stimulated cells may continue firing and remain visible. Cells receiving only
 synaptic input must remain silent. Their spike counts are reported separately.
 Video stimulation off sets the external currents to zero without clearing state.
+
+## Play the DOOM world model on the brain
+
+The live page accepts a third stimulus: frames generated on the fly by the trained Genie world model
+(`experiments/play_server.py`: the frozen tokenizer, latent action model and dynamics model, run through the
+cached fast paths in `experiments/fast_infer.py`). Start the model server from the repository root, then
+the UI, which proxies `/world` to it:
+
+```sh
+python3 experiments/play_server.py --port 8008 --steps 3 --dtype float16 \
+  --checkpoint data/checkpoints/dynamics_newvae_weights.pt \
+  --tokenizer data/checkpoints/vae_new_43db_weights.pt \
+  --lam data/checkpoints/lam_spatial_a100_pan.pt
+cd ui && npm run dev:full
+```
+
+Those three paths are the current pair and are not the script's defaults, which still name the
+earlier 37 dB tokenizer. On 24 validation clips the current pair reaches 25.55 dB on the next frame
+against a 25.47 dB copy-the-last-frame baseline (the earlier pair: 24.96 dB, below that baseline) and
+holds 24.1 dB six frames into a rollout (earlier: 23.3 dB). It also never collapsed at 2, 3, 4, 6, 8 or 25
+MaskGIT passes, where the earlier pair collapsed on 2 of 24 clips at 4 passes. Its exact token-ID accuracy
+is lower, 18% against 23%, because token accuracy is measured in each tokenizer's own codes and is not
+comparable between them; judge a pair on picture quality against the copy-last baseline instead.
+
+Press **Play world model** under *Your stimulus*, then **Start experiment**. Generated frames leave the
+client through a canvas `MediaStream`, so the same `LiveSource` capture and the same controller receive
+them as any decoded video: the brain forms each frame the model produces. Hold **A** / **D** to turn (this
+LAM's latent actions are a camera-pan quantizer; **W** / **S** are its two no-turn codes; **0**–**7** send
+raw codes). **R** takes a new prompt clip, **Q** toggles 3 / 25 MaskGIT passes, **[** **]** change passes.
+With nothing held the world holds its frame (every latent code walks forward, so this is the only way
+to stand still); `?idle=W` keeps it walking. Reset also resets the world to a fresh prompt. A is code 3
+and D is code 6, the opposite of `play_server.py`'s default map, because A turned the player right in play
+testing; `?keys=` overrides.
+
+**`/play.html` is the arcade version**: the generated frame and the brain side by side, the physical
+fly across the bottom, no clips, file input or inspector. It connects to the world model by itself and
+starts as soon as the anatomy is uploaded. Keys: A / D turn, R new prompt (also resets brain and body),
+Q and [ ] passes, Space pause, P cycle colours, V brain viewpoint, B fly viewpoint; `?palette=`, `?steps=`,
+`?world=` work as on live.html. Its fly uses an **arcade motor adapter**, labelled on the page: the same
+descending-neuron readout as live.html amplified by `?bodyGain=` (default 4) plus a twitch scaled by the
+brain's mean spike rate (`?twitch=`, default 1, 0 disables), with physics paced by the wall clock rather
+than 100 ms per neural frame. It is not the measured adapter and makes no claim about real fly motor control.
+
+The brain image can also be snapped to the game's own pixel grid, cycled with **Z** and selected with
+`?pixels=`: `game pixels` (default) uses one cell per pixel of the generated frame, since the controller
+letterboxes the 160 x 90 frame into its 640 x 480 raster, so one game pixel is exactly 4 x 4 control cells;
+`half pixels` uses a 2x finer grid; `full detail` keeps the raw 1280 x 960 cache. Each cell averages the
+supported light texels inside it, and the grid in use is stated in the brain label.
+
+Compare contrast between grid modes at the cell scale, not per device pixel: inside a cell neighbouring
+pixels are identical by construction (96.4% of them in game-pixel mode), so a naive per-pixel gradient
+reports 0.0050 against 0.0264 for full detail. Measured at a common 19-pixel cell the ordering reverses,
+0.0321 raw full detail, 0.0443 refined full detail, 0.0491 half pixels, 0.0509 game pixels: averaging
+concentrates structure at the cell scale rather than removing it.
+
+On `play.html` the brain view also runs **display processing of the simulated light**, stated in the
+brain label and cycled with **X**: `refined` (default), `punchy`, `raw`. It stretches each frame to the
+light range of the pixels actually on screen (2nd to 99.5th percentile, smoothed across frames), applies
+gamma, an unsharp local-contrast term that skips unsupported texels, and a saturation factor. It is a
+monotone reweighting of light the simulation produced: no video content and no per-branch colour enter it,
+and `?look=raw` or the X key turns it off. Measured on the default bottom framing it raises median
+brightness from 0.22 to 0.28 of white, the 99th percentile from 0.62 to 0.99, local contrast from 0.014 to
+0.025 and colour saturation from 0.05 to 0.13, clipping 1.3% of lit pixels.
+
+The brain header has a **colour** menu: the spike light is shown through a false-colour palette
+(heat by default; viridis, plasma, magma, or the original grayscale, also `?palette=grayscale`), or in
+**source colours**: brightness is still the density-normalized spike light, and only the hue is taken from
+the frame the controller was given, at the same raster position (`play.html` defaults to this). The
+palettes use no video at all. Saved brain images use the current mode.
+
+Options: `?keys=W=1,S=4,…` mirrors a server started with `--keys`; `?steps=N` sets the initial passes;
+`?world=URL` targets a server directly (it must send CORS headers; the proxy path needs none);
+`WORLD_MODEL_URL=http://127.0.0.1:8018 npm run dev` retargets the proxy, and `ssh -L 8008:localhost:8008
+piano` lets the GPU box generate. `/world-test.html` exercises the source path without the brain, and
+`WORLD_MODEL_URL=… npx playwright test tests/world-model.spec.ts` runs it headless (it skips with no server).
+
+Measured on an M3 Max (MPS): the cached world model generates about 4 frames/s in float32 and about
+5 frames/s with `--dtype float16` (around 200 ms per frame, three MaskGIT passes). The brain side processes
+about 10 frames/s on the measured M5 Pro, so generation is the slower stage; a key press reaches the neural
+display after roughly one generated frame plus one neural frame. The generated pictures share the dynamics
+model's current limits (see `experiments/README.md`): the world drifts, and only turning is controllable.
 
 ## What is real and what is modelled
 
@@ -95,6 +192,7 @@ With the existing baseline caches prepared, run from the repository root:
 .venv/bin/python ui/scripts/prepare_full_brain.py
 .venv/bin/python ui/scripts/prepare_full_connectome.py
 .venv/bin/python ui/scripts/prepare_full_basis.py --width 320
+.venv/bin/python ui/scripts/prepare_full_basis.py --width 640   # the live and play pages' default control width
 .venv/bin/python ui/scripts/prepare_full_basis.py --width 1280
 .venv/bin/python ui/scripts/prepare_render_cache.py
 .venv/bin/python ui/scripts/evaluate_full_anatomy.py

@@ -10,8 +10,14 @@ data/
 /tests/
 /test.py
 /test_*.py
-vae_latest_best.pt
 .gstack/
 
 # Generated local ViZDoom settings
 /_vizdoom.ini
+
+# Model checkpoints and weights. These live in data/checkpoints locally and on
+# the training box; they are far too large for git (vae_latest_best.pt is 4.7 GB).
+*.pt
+*.pth
+*.ckpt
+*.safetensors

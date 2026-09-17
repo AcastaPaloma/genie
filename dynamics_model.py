@@ -17,7 +17,7 @@ from config import (DYNAMICS as ARCH, VIDEO_CODES, CODE_WIDTH, IMAGE_SIZE,
                     VIDEO_PATCH, SEQUENCE_LENGTH, MASK_RATE_RANGE, MASKGIT_STEPS,
                     SAMPLING_TEMPERATURE)
 from patches import VideoPatches, position_parameter
-from transformer import SpatioTemporalTransformerBlock
+from transformer import SpatioTemporalTransformerBlock, TemporalCache
 
 
 class DynamicsModel(nn.Module):
@@ -84,6 +84,17 @@ class DynamicsModel(nn.Module):
             raise TypeError("Actions must be floating-point LAM codebook vectors")
         if mask is not None and (mask.dtype != torch.bool or tuple(mask.shape) != (b, t, n)):
             raise ValueError("mask must be boolean with shape (B,T,N)")
+        x = self._embed(video_tokens, action_tokens, mask, is_ids)
+        for block in self.trans_blocks:
+            if self.gradient_checkpointing and self.training and torch.is_grad_enabled():
+                x = torch.utils.checkpoint.checkpoint(block, x, use_reentrant=False)
+            else:
+                x = block(x)
+        return self.to_logits(self.output_norm(x))
+
+    def _embed(self, video_tokens, action_tokens, mask, is_ids):
+        """Input embedding for frames at temporal positions 0..T-1 (validated by the caller)."""
+        t = video_tokens.shape[1]
         if is_ids:
             if mask is not None:
                 video_tokens = video_tokens.masked_fill(mask, self.mask_id)
@@ -96,14 +107,46 @@ class DynamicsModel(nn.Module):
         actions = self.action_proj(action_tokens.detach())
         # Pad AFTER projection: first frame gets zero even when projection has bias.
         actions = F.pad(actions, (0, 0, 1, 0)).unsqueeze(2)
-        x = x + actions + self.spatial_pos[None, None] + self.temporal_pos[None, :t, None]
-        for block in self.trans_blocks:
-            if self.gradient_checkpointing and self.training and torch.is_grad_enabled():
-                x = torch.utils.checkpoint.checkpoint(block, x, use_reentrant=False)
-            else:
-                x = block(x)
-        return self.to_logits(self.output_norm(x))
+        return x + actions + self.spatial_pos[None, None] + self.temporal_pos[None, :t, None]
 
+    def build_cache(self, video_tokens, action_tokens):
+        """Run finalized context frames (B,T,N) ids with (B,T-1) actions once; keep temporal K/V."""
+        if video_tokens.ndim != 3 or video_tokens.dtype not in (torch.int32, torch.int64):
+            raise ValueError("build_cache takes integer token IDs (B,T,N)")
+        b, t, n = video_tokens.shape
+        if n != self.n_patches or not 1 <= t < self.temporal_pos.shape[0]:
+            raise ValueError("Context must fit the patch grid and leave room for a new frame")
+        if tuple(action_tokens.shape) != (b, t - 1, self.action_width):
+            raise ValueError("Expected T-1 transition action vectors (B,T-1,action_width)")
+        x = self._embed(video_tokens, action_tokens, None, True)
+        layers = []
+        for block in self.trans_blocks:
+            x, kv = block.forward_collect(x)
+            layers.append(kv)
+        return TemporalCache(layers)
+
+    def forward_step(self, video_tokens, action_token, mask, cache):
+        """Logits (B,N,K) for ONE new frame after the cached context.
+
+        video_tokens: (B,N) ids of the new frame (ignored where mask is True);
+        action_token: (B,action_width), the transition into the new frame;
+        mask: bool (B,N). Also returns the frame's per-block K/V (B,N,H,1,d) so
+        the caller can extend the cache once the frame is final. Equals the last
+        frame of the full ``forward`` on context + new frame.
+        """
+        t = cache.frames
+        if t >= self.temporal_pos.shape[0]:
+            raise ValueError("Cache is full; rebuild it from the last frames")
+        if mask.dtype != torch.bool or tuple(mask.shape) != tuple(video_tokens.shape):
+            raise ValueError("mask must be boolean (B,N)")
+        x = self.video_embedding(video_tokens.masked_fill(mask, self.mask_id))[:, None]
+        x = x + self.action_proj(action_token.detach())[:, None, None]
+        x = x + self.spatial_pos[None, None] + self.temporal_pos[None, t:t + 1, None]
+        new_layers = []
+        for block, kv in zip(self.trans_blocks, cache.layers):
+            x, new = block.forward_step(x, kv)
+            new_layers.append(new)
+        return self.to_logits(self.output_norm(x))[:, 0], new_layers
 
 
 def _resolve_device(device):
@@ -267,6 +310,47 @@ def sample_next_frame(model, ids, actions, *, steps=MASKGIT_STEPS, temperature=S
 
 
 @torch.no_grad()
+def sample_next_frame_cached(model, cache, action, *, steps=MASKGIT_STEPS, temperature=SAMPLING_TEMPERATURE,
+                             confidence_threshold=None):
+    """MaskGIT-decode the frame after a cached context; returns (ids (B,N), extended cache, passes used).
+
+    Same schedule as ``sample_next_frame`` but every pass only runs the new
+    frame's tokens against the cache. ``confidence_threshold`` (0..1) enables
+    adaptive early exit: tokens sampled with at least that probability are
+    fixed immediately, and the loop stops once nothing is hidden. A final pass
+    recomputes the finished frame's K/V so the cache stays exact.
+    """
+    if steps < 1:
+        raise ValueError("steps must be positive")
+    b, n = cache.batch, model.n_patches
+    device = cache.layers[0]["k"].device
+    frame = torch.zeros(b, n, dtype=torch.long, device=device)
+    hidden = torch.ones(b, n, dtype=torch.bool, device=device)
+    passes = 0
+    for step in range(1, steps + 1):
+        logits, _ = model.forward_step(frame, action, hidden, cache)
+        passes += 1
+        probs = torch.softmax(logits.float() / temperature, dim=-1)
+        sampled = torch.multinomial(probs.reshape(-1, probs.shape[-1]), 1).reshape(b, n)
+        confidence = probs.gather(-1, sampled[..., None]).squeeze(-1)
+        frame = torch.where(hidden, sampled, frame)
+        keep_hidden = int(n * math.cos(math.pi / 2 * step / steps))
+        confidence = confidence.masked_fill(~hidden, float("inf"))
+        if confidence_threshold is not None:
+            confidence = confidence.masked_fill(confidence >= confidence_threshold, float("inf"))
+        still = torch.isfinite(confidence)
+        keep_hidden = min(keep_hidden, int(still.sum(dim=-1).max()))
+        if keep_hidden == 0:
+            break
+        lowest = confidence.topk(keep_hidden, dim=-1, largest=False).indices
+        hidden = torch.zeros_like(hidden).scatter_(1, lowest, True) & still
+        if not hidden.any():
+            break
+    _, new_layers = model.forward_step(frame, action, torch.zeros_like(hidden), cache)
+    return frame, cache.extended(new_layers), passes
+
+
+@torch.no_grad()
 def rollout(model, ids, actions, num_steps, **sampling):
     """Generate num_steps frames autoregressively from prompt frames ids (B,t,N).
 
@@ -313,7 +397,7 @@ def train_dynamics(*, tokenizer, lam, data_dir=None, val_dir=None, epochs=1, bat
                    grad_clip=1.0, num_workers=0, seed=42, checkpoint=None, log_every=100,
                    width=None, blocks=None, heads=None, head_dim=None, stride=4,
                    eval_clips=128, max_windows=None, resume=False, model=None,
-                   gradient_checkpointing=False):
+                   gradient_checkpointing=False, eval_every=0, checkpoint_every=0):
     """Train the dynamics model on frozen tokenizer IDs and frozen LAM actions.
 
     tokenizer/lam are checkpoint paths. batch_size counts 16-frame clips taken
@@ -321,7 +405,9 @@ def train_dynamics(*, tokenizer, lam, data_dir=None, val_dir=None, epochs=1, bat
     is what the LAM checkpoints were trained on). Single device, no gradient
     accumulation. Model size stays at full Table 12 defaults unless width/blocks/
     heads/head_dim or a model are given. max_windows caps the training windows
-    for smoke tests only.
+    for smoke tests only. eval_every/checkpoint_every (in optimizer steps, 0 =
+    epoch end only) add mid-epoch evals and checkpoints; a mid-epoch checkpoint
+    records the last COMPLETED epoch, so resuming from it restarts that epoch.
     """
     from dataclasses import replace
     from pathlib import Path
@@ -334,8 +420,8 @@ def train_dynamics(*, tokenizer, lam, data_dir=None, val_dir=None, epochs=1, bat
 
     if min(epochs, batch_size, log_every, stride, eval_clips) < 1 or num_workers < 0 or warmup_steps < 0:
         raise ValueError("epochs, batch_size, log_every, stride, eval_clips must be positive; workers/warmup nonnegative")
-    if grad_clip < 0 or (max_windows is not None and max_windows < 1):
-        raise ValueError("grad_clip must be nonnegative and max_windows positive")
+    if grad_clip < 0 or (max_windows is not None and max_windows < 1) or min(eval_every, checkpoint_every) < 0:
+        raise ValueError("grad_clip, eval_every, checkpoint_every must be nonnegative and max_windows positive")
     root = Path(__file__).resolve().parent
     data_dir = Path(data_dir) if data_dir is not None else root / "data/train"
     val_dir = Path(val_dir) if val_dir is not None else root / "data/val"
@@ -401,11 +487,29 @@ def train_dynamics(*, tokenizer, lam, data_dir=None, val_dir=None, epochs=1, bat
         model.load_state_dict(resumed["model_state_dict"])
         optimizer.load_state_dict(resumed["optimizer_state_dict"])
         scheduler.load_state_dict(resumed["scheduler_state_dict"])
+        # The schedule follows the CURRENT config from here: a resumed run with a new
+        # learning rate or epoch count must not keep the old base LR (which would
+        # silently re-apply the original max_lr when min == max).
+        scheduler.base_lrs = [learning_rate] * len(scheduler.base_lrs)
+        for group in optimizer.param_groups:
+            group["initial_lr"] = learning_rate
         scaler.load_state_dict(resumed["scaler_state_dict"])
         history, evals = resumed["history"], resumed["evals"]
         global_step, start_epoch = resumed["global_step"], resumed["epoch"] + 1
-        print(f"Resumed from {checkpoint}: epoch {resumed['epoch']}, step {global_step}", flush=True)
+        print(f"Resumed from {checkpoint}: epoch {resumed['epoch']}, step {global_step}"
+              + (f" (mid-epoch save from epoch {resumed['partial_epoch']}; that epoch restarts)" if resumed.get('partial_epoch') else ""), flush=True)
         del resumed
+
+    def checkpoint_state(completed_epoch, partial_epoch=None):
+        return {
+            "model_config": model.model_config, "model_state_dict": model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(), "scheduler_state_dict": scheduler.state_dict(),
+            "scaler_state_dict": scaler.state_dict(), "epoch": completed_epoch, "partial_epoch": partial_epoch,
+            "global_step": global_step, "history": history, "evals": evals,
+            "training_config": vars(training_config), "source_files": dataset.paths, "seed": seed,
+            "sequence_length": 16, "stride": stride, "mask_rate_range": MASK_RATE_RANGE,
+            "video_representation": "ids", "tokenizer_checkpoint": tokenizer_path, "lam_checkpoint": lam_path,
+        }
 
     def run_eval():
         metrics = evaluate(model, lam, val_ids, val_actions, batch_size=batch_size, device=device, autocast=autocast)
@@ -449,18 +553,15 @@ def train_dynamics(*, tokenizer, lam, data_dir=None, val_dir=None, epochs=1, bat
                 print(f"epoch {epoch}/{epochs} batch {batch_number}/{len(loader)} loss={loss.item():.4f} "
                       f"masked={mask[:, 1:].float().mean().item():.2f} grad_norm={grad_norm:.2f} "
                       f"lr={optimizer.param_groups[0]['lr']:.2e}", flush=True)
+            if eval_every and global_step % eval_every == 0 and batch_number != len(loader):
+                run_eval()
+            if checkpoint_every and global_step % checkpoint_every == 0 and batch_number != len(loader):
+                save_checkpoint(checkpoint, checkpoint_state(completed_epoch=epoch - 1, partial_epoch=epoch))
+                print(f"Saved mid-epoch checkpoint at step {global_step}", flush=True)
         history.append(dict(epoch=epoch, step=global_step, loss=total_loss / sequences_seen,
                             sequences=sequences_seen, batches=len(loader)))
         run_eval()
-        save_checkpoint(checkpoint, {
-            "model_config": model.model_config, "model_state_dict": model.state_dict(),
-            "optimizer_state_dict": optimizer.state_dict(), "scheduler_state_dict": scheduler.state_dict(),
-            "scaler_state_dict": scaler.state_dict(), "epoch": epoch, "global_step": global_step,
-            "history": history, "evals": evals, "training_config": vars(training_config),
-            "source_files": dataset.paths, "seed": seed, "sequence_length": 16, "stride": stride,
-            "mask_rate_range": MASK_RATE_RANGE, "video_representation": "ids",
-            "tokenizer_checkpoint": tokenizer_path, "lam_checkpoint": lam_path,
-        })
+        save_checkpoint(checkpoint, checkpoint_state(completed_epoch=epoch))
         print(f"Finished epoch {epoch}: {sequences_seen:,} sequences; saved {checkpoint}", flush=True)
 
     model.eval()
@@ -498,6 +599,8 @@ if __name__ == "__main__":
     parser.add_argument("--eval-clips", type=int, default=128)
     parser.add_argument("--max-windows", type=int, default=None, help="Smoke tests only: cap training windows")
     parser.add_argument("--resume", action="store_true", help="Continue from --checkpoint")
+    parser.add_argument("--eval-every", type=int, default=0, help="Also evaluate every N optimizer steps (0 = epoch end only)")
+    parser.add_argument("--checkpoint-every", type=int, default=0, help="Also checkpoint every N optimizer steps (0 = epoch end only)")
     parser.add_argument("--gradient-checkpointing", action="store_true",
                         help="Recompute ST-block activations in backward (~4x less activation memory, ~30%% slower)")
     train_dynamics(**vars(parser.parse_args()))

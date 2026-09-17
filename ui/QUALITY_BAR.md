@@ -16,9 +16,17 @@ Completion requires all of these:
 - Test previously unexamined video sequences and browser-decoded local uploads.
   Preserve neural history across frames and clip changes. No clip-specific
   brightness targets, prerecorded neural output or source-image compositing.
-- Include all 139,255 official neurons and all 268,139,177 released skeleton
-  edges, including input cells. Keep all measured connections. A fixed-camera
-  cache must integrate every branch, and rotation must show the original anatomy.
+- Import all 139,255 official neurons and all 268,139,177 released skeleton
+  edges, including input cells, and keep all measured connections. Every neuron
+  is simulated in every route. A fixed-camera cache must integrate every branch,
+  and rotation must show the original anatomy.
+- The main view draws one published anatomical region (default: the central
+  brain, 50,328 neurons / 169,589,408 vertices; the optic lobes and
+  photoreceptors are withheld from **drawing** only, by published super_class
+  and cell_type, never by a coordinate cut). `?region=all` must still draw the
+  complete brain, and the displayed region and its neuron count must be stated
+  in the interface. Withheld neurons keep spiking and keep their connections;
+  a region is a display selection, not a reduced import or a reduced model.
 - Verify that disconnecting transmission silences non-input cells after reset,
   and record how much of the visible reconstruction depends on those cells.
   Directly stimulated cells must remain disclosed and visible.
@@ -29,6 +37,10 @@ and temporal correspondence. Masked scores exclude unsupported image regions;
 they cannot establish reconstruction of the whole rectangular source image.
 
 Current status: **not met**. The complete anatomical import and causal simulator
-work. The full-brain image remains insufficiently recognizable. The independent
+work. The image remains insufficiently recognizable. Drawing only the central
+brain (2026-09-15) removes the two dense optic-lobe masses that dominated the
+frame and lets the camera fill it with central neuropil; this is a legibility
+change to the display, and it has not yet been re-measured against the
+recognition criteria above. The independent
 whole-neuron brightness fit is only an optimistic anatomical feasibility test,
 never a substitute for actual neural playback.

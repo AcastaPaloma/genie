@@ -170,6 +170,30 @@ class SelfAttention(nn.Module):
             return output, attention_for_return
         return output
 
+    def project(self, x: Tensor) -> tuple[Tensor, Tensor, Tensor]:
+        """Return per-head q, k, v ``(*, H, L, d_h)`` with QK normalization applied."""
+        self._validate_input(x)
+        q = self.q_norm(self._split_heads(self.q_proj(x)))
+        k = self.k_norm(self._split_heads(self.k_proj(x)))
+        v = self._split_heads(self.v_proj(x))
+        return q, k, v
+
+    def attend(self, q: Tensor, k: Tensor, v: Tensor, *, is_causal: bool = False) -> Tensor:
+        """Fused attention of queries ``(*, H, Lq, d_h)`` over keys/values ``(*, H, Lk, d_h)``.
+
+        Keys may be longer than queries (cached context). ``is_causal`` only
+        makes sense when Lq == Lk. Returns ``(*, Lq, D)`` after the output projection.
+        """
+        leading, lq = q.shape[:-3], q.shape[-2]
+        q, k, v = (a.reshape(-1, self.num_heads, a.shape[-2], self.head_dim) for a in (q, k, v))
+        attended = F.scaled_dot_product_attention(
+            q, k, v, is_causal=is_causal,
+            dropout_p=self.attention_dropout.p if self.training else 0.0,
+        )
+        attended = attended.reshape(*leading, self.num_heads, lq, self.head_dim)
+        attended = attended.transpose(-3, -2).reshape(*leading, lq, self.attention_dim)
+        return self.projection_dropout(self.out_proj(attended))
+
     def _validate_input(self, x: Tensor) -> None:
         if x.ndim < 3:
             raise ValueError(
@@ -350,6 +374,37 @@ class SpatioTemporalTransformerBlock(nn.Module):
             return output, {"spatial": spatial_weights, "temporal": temporal_weights}
         return output
 
+    def forward_collect(self, x: Tensor) -> tuple[Tensor, dict[str, Tensor]]:
+        """Same as ``forward`` (no extra mask) but also return this block's temporal
+        keys/values ``(B, N, H, T, d_h)`` so later frames can attend to them."""
+        sequence, grid_shape = self._to_spatial_sequence(x)
+        spatial_state = sequence + self.spatial_attention(self.spatial_norm(sequence))
+        temporal_input = self.temporal_norm(spatial_state).transpose(1, 2)
+        q, k, v = self.temporal_attention.project(temporal_input)
+        temporal_update = self.temporal_attention.attend(q, k, v, is_causal=self.temporal_causal)
+        temporal_state = spatial_state + temporal_update.transpose(1, 2)
+        output = temporal_state + self.ffn(self.ffn_norm(temporal_state))
+        return self._restore_spatial_layout(output, grid_shape), {"k": k, "v": v}
+
+    def forward_step(self, x: Tensor, cache: dict[str, Tensor] | None) -> tuple[Tensor, dict[str, Tensor]]:
+        """Apply the block to ONE new frame ``(B, 1, N, D)`` placed after cached frames.
+
+        ``cache`` holds this block's temporal keys/values for the earlier frames
+        (from ``forward_collect`` / earlier steps); the new frame attends over
+        them plus itself, which equals the causal full forward for the last
+        frame. Returns the output and the new frame's own ``{"k", "v"}`` of shape
+        ``(B, N, H, 1, d_h)`` (not appended to ``cache``; the caller decides).
+        """
+        if x.ndim != 4 or x.shape[1] != 1:
+            raise ValueError("forward_step expects a single frame (B, 1, N, D)")
+        spatial_state = x + self.spatial_attention(self.spatial_norm(x))
+        temporal_input = self.temporal_norm(spatial_state).transpose(1, 2)  # (B, N, 1, D)
+        q, k, v = self.temporal_attention.project(temporal_input)
+        keys, values = (k, v) if cache is None else (torch.cat([cache["k"], k], dim=-2), torch.cat([cache["v"], v], dim=-2))
+        temporal_update = self.temporal_attention.attend(q, keys, values)  # last query sees everything: no mask
+        temporal_state = spatial_state + temporal_update.transpose(1, 2)
+        return temporal_state + self.ffn(self.ffn_norm(temporal_state)), {"k": k, "v": v}
+
     def _to_spatial_sequence(self, x: Tensor) -> tuple[Tensor, tuple[int, int] | None]:
         if x.ndim not in (4, 5):
             raise ValueError(
@@ -373,6 +428,36 @@ class SpatioTemporalTransformerBlock(nn.Module):
         batch, frames, _, embedding = x.shape
         height, width = grid_shape
         return x.reshape(batch, frames, height, width, embedding)
+
+
+class TemporalCache:
+    """Per-block temporal keys/values of finalized frames, for incremental decoding.
+
+    ``layers[i]`` is ``{"k", "v"}`` with shape ``(B, N, H, T, d_h)`` for block i.
+    Frames carry absolute temporal positions, so a cache is only valid for the
+    window it was built for: rebuild it (from the last few frames) before it
+    would exceed the model's temporal length.
+    """
+
+    def __init__(self, layers: list[dict[str, Tensor]]) -> None:
+        if not layers:
+            raise ValueError("cache needs at least one block")
+        self.layers = layers
+
+    @property
+    def frames(self) -> int:
+        return self.layers[0]["k"].shape[-2]
+
+    @property
+    def batch(self) -> int:
+        return self.layers[0]["k"].shape[0]
+
+    def extended(self, new_layers: list[dict[str, Tensor]]) -> "TemporalCache":
+        """Return a cache with one finalized frame appended to every block."""
+        if len(new_layers) != len(self.layers):
+            raise ValueError("block count mismatch")
+        return TemporalCache([{key: torch.cat([old[key], new[key]], dim=-2) for key in ("k", "v")}
+                              for old, new in zip(self.layers, new_layers)])
 
 
 def _validate_attention_config(

@@ -74,6 +74,7 @@ def main():
     ap.add_argument("--lam", default=None); ap.add_argument("--val-dir", default=None)
     ap.add_argument("--steps", type=int, default=None); ap.add_argument("--temperature", type=float, default=None)
     ap.add_argument("--seed", type=int, default=0); ap.add_argument("--device", default=None)
+    ap.add_argument("--pan-clips", type=int, default=24, help="clips for the per-code pan statistics (argmax decodes)")
     args = ap.parse_args()
     torch.manual_seed(args.seed)
     device = dm._resolve_device(args.device)
@@ -83,11 +84,11 @@ def main():
     lam_path = args.lam or str(_ROOT / ck["lam_checkpoint"]) if not Path(ck["lam_checkpoint"]).is_absolute() else ck["lam_checkpoint"]
     tokenizer, lam = dm.load_tokenizer(tok_path, device), dm.load_lam(lam_path, device)
     sampling = {k: v for k, v in dict(steps=args.steps, temperature=args.temperature).items() if v is not None}
-    out = Path(args.out_dir) / f"epoch{ck.get('epoch', 0)}"; out.mkdir(parents=True, exist_ok=True)
+    out = Path(args.out_dir) / f"epoch{ck.get('epoch', 0)}_step{ck.get('global_step', 0)}"; out.mkdir(parents=True, exist_ok=True)
     T0, R = args.context, args.rollout
     if T0 + R > 16 or T0 < 1 or R < 1:
         raise ValueError("context + rollout must fit in the 16-frame clips")
-    print(f"dynamics epoch {ck.get('epoch')} step {ck.get('global_step')}; tokenizer {Path(tok_path).name}; LAM {Path(lam_path).name} (K={lam.K}); device {device}", flush=True)
+    print(f"dynamics epoch {ck.get('epoch')}{' (partial ' + str(ck['partial_epoch']) + ')' if ck.get('partial_epoch') else ''} step {ck.get('global_step')}; tokenizer {Path(tok_path).name}; LAM {Path(lam_path).name} (K={lam.K}); device {device}", flush=True)
 
     ds = StrideClipDataset(args.val_dir or _ROOT / "data/val", T=16, stride=ck.get("stride", 4), start_step=16, max_windows=args.clips)
     video = torch.stack([ds[i][0] for i in range(len(ds))]).to(device)          # (n,16,96,160,3)
@@ -118,22 +119,35 @@ def main():
     print(f"next frame: {json.dumps({k: round(v, 3) for k, v in m['next_frame'].items()})}  [{time.time()-t0:.0f}s]", flush=True)
 
     # ---- 2. same context, every latent action ----
+    # Pan statistics come from deterministic argmax decodes over pan_clips clips: the
+    # shift estimator is heavy-tailed (std ~9 px on generated frames), so a handful of
+    # temperature-2 samples reads as a fake bias. Images still show MaskGIT samples.
+    pan_ds = StrideClipDataset(args.val_dir or _ROOT / "data/val", T=16, stride=ck.get("stride", 4), start_step=16, max_windows=args.pan_clips)
+    pan_video = torch.stack([pan_ds[i][0] for i in range(len(pan_ds))]).to(device)
+    with torch.no_grad():
+        pan_ids, pan_actions = dm.encode_clips(tokenizer, lam, pan_video)
+    pan_ctx, pan_truth = pan_video[:, T0 - 1], pan_video[:, T0]
+    pan_mask = torch.zeros(len(pan_ds), T0 + 1, pan_ids.shape[2], dtype=torch.bool, device=device); pan_mask[:, -1] = True
     per_code, code_rows = {}, [[to_img(video[i, T0 - 1])] for i in range(n)]
-    true_pan = pan(video[:, T0 - 1], truth)
     with torch.no_grad():
         for k in range(lam.K):
-            acts = actions[:, :T0].clone()
-            acts[:, -1] = dm.action_vectors(lam, torch.full((n,), k, device=device, dtype=torch.long))
-            px = decode_last(ids[:, :T0], dm.sample_next_frame(model, ids[:, :T0], acts, **sampling))
-            p = pan(video[:, T0 - 1], px)
-            per_code[k] = dict(mean_pan=p.mean().item(), std_pan=p.std().item() if n > 1 else 0.0)
+            acts = pan_actions[:, :T0].clone()
+            acts[:, -1] = dm.action_vectors(lam, torch.full((len(pan_ds),), k, device=device, dtype=torch.long))
+            code_ids = model(pan_ids[:, :T0 + 1], acts, mask=pan_mask)[:, -1].argmax(-1)
+            p = pan(pan_ctx, decode_last(pan_ids[:, :T0], code_ids))
+            per_code[k] = dict(mean_pan=p.mean().item(), median_pan=p.median().item(), std_pan=p.std().item() if len(pan_ds) > 1 else 0.0)
+            acts_img = actions[:, :T0].clone()
+            acts_img[:, -1] = dm.action_vectors(lam, torch.full((n,), k, device=device, dtype=torch.long))
+            px = decode_last(ids[:, :T0], dm.sample_next_frame(model, ids[:, :T0], acts_img, **sampling))
             for i in range(n):
                 code_rows[i].append(to_img(px[i]))
-    m["actions"] = dict(true_pan_mean=true_pan.mean().item(), per_code=per_code,
+    true_pan = pan(pan_ctx, pan_truth)
+    m["actions"] = dict(true_pan_mean=true_pan.mean().item(), per_code=per_code, pan_clips=len(pan_ds), pan_method="argmax",
                         pan_spread_across_codes=float(np.std([v["mean_pan"] for v in per_code.values()])))
-    labels = [f"context frame {T0 - 1}"] + [f"code {k}: pan {per_code[k]['mean_pan']:+.1f}px" for k in range(lam.K)]
+    labels = [f"context frame {T0 - 1}"] + [f"code {k}: pan {per_code[k]['mean_pan']:+.1f}px (argmax, n={len(pan_ds)})" for k in range(lam.K)]
     grid(code_rows, labels).save(out / "actions.png")
-    print("actions: " + "  ".join(f"code{k} pan={v['mean_pan']:+.1f}±{v['std_pan']:.1f}" for k, v in per_code.items()) + f"  (true pan {true_pan.mean().item():+.1f}, spread across codes {m['actions']['pan_spread_across_codes']:.2f})  [{time.time()-t0:.0f}s]", flush=True)
+    print("actions (argmax pan over %d clips): " % len(pan_ds) + "  ".join(f"code{k} pan={v['mean_pan']:+.1f}±{v['std_pan']:.1f}" for k, v in per_code.items()) + f"  (true pan {true_pan.mean().item():+.1f}, spread across codes {m['actions']['pan_spread_across_codes']:.2f})  [{time.time()-t0:.0f}s]", flush=True)
+    del pan_video, pan_ids, pan_actions
 
     # ---- 3. rollout with the clip's own LAM actions ----
     with torch.no_grad():

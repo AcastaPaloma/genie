@@ -36,8 +36,8 @@ def main(log_path, tb_dir, follow=True):
         if len(lines) > seen:
             writer.flush()
         seen = len(lines)
-        if not follow or any(l.startswith("dynamics run finished") for l in lines):
-            break
+        if not follow or (lines and lines[-1].startswith("dynamics run finished")):
+            break  # stop only when the finished line is the LAST line; a resumed run appends after it
         time.sleep(30)
     writer.close()
 

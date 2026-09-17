@@ -8,7 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test": "npm run test:neural && playwright test",
-    "test:neural": "node --test tests/neural.test.ts tests/synaptic.test.ts tests/live-measurements.test.ts",
+    "test:neural": "node --test tests/neural.test.ts tests/synaptic.test.ts tests/live-measurements.test.ts tests/brain-regions.test.ts",
     "dev:full": "node scripts/start_full.mjs"
   },
   "dependencies": {

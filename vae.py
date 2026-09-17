@@ -6,7 +6,7 @@ from torch import nn
 from config import (TOKENIZER_ENCODER as ENC, TOKENIZER_DECODER as DEC,
                     VIDEO_PATCH, IMAGE_SIZE, CHANNELS, SEQUENCE_LENGTH,
                     VIDEO_CODES, CODE_WIDTH)
-from transformer import SpatioTemporalTransformerBlock
+from transformer import SpatioTemporalTransformerBlock, TemporalCache
 from cookbook import Cookbook
 from patches import VideoPatches, position_parameter
 
@@ -104,6 +104,41 @@ class VAE(VideoPatches):
 
     def decode_tokens(self, indices):
         return self.decode(self.cb.cookbook(indices))
+
+    def build_decoder_cache(self, z_q):
+        """Run the decoder over context frames (B,T,N,32) and keep their temporal K/V."""
+        if z_q.ndim != 4 or tuple(z_q.shape[2:]) != (self.n_patches, self.cb.code_width):
+            raise ValueError("Expected codebook vectors (B,T,n_patches,code_width)")
+        t = z_q.shape[1]
+        if not 1 <= t < self.dec_temporal_pos.shape[0]:
+            raise ValueError("Cache must leave room for at least one more frame")
+        x = self.proj_codebook_to_dec_width(z_q)
+        x = x + self.dec_spatial_pos[None, None] + self.dec_temporal_pos[None, :t, None]
+        layers = []
+        for block in self.dec_blocks:
+            x, kv = block.forward_collect(x)
+            layers.append(kv)
+        return TemporalCache(layers)
+
+    def decode_step(self, z_q, cache):
+        """Decode ONE new frame (B,N,32) after the cached frames -> pixels (B,H,W,C) and its K/V."""
+        if z_q.ndim != 3 or tuple(z_q.shape[1:]) != (self.n_patches, self.cb.code_width):
+            raise ValueError("Expected one frame of codebook vectors (B,n_patches,code_width)")
+        t = cache.frames
+        if t >= self.dec_temporal_pos.shape[0]:
+            raise ValueError("Decoder cache is full; rebuild it from the last frames")
+        x = self.proj_codebook_to_dec_width(z_q)[:, None]
+        x = x + self.dec_spatial_pos[None, None] + self.dec_temporal_pos[None, t:t + 1, None]
+        new_layers = []
+        for block, kv in zip(self.dec_blocks, cache.layers):
+            x, new = block.forward_step(x, kv)
+            new_layers.append(new)
+        logits = self.proj_dec_to_pp_width(self.decoder_output_norm(x))
+        pixels = logits.float().sigmoid() if self.model_config["stabilize"] else logits.sigmoid()
+        return self.unpatchify(pixels)[:, 0], new_layers
+
+    def decode_tokens_step(self, indices, cache):
+        return self.decode_step(self.cb.cookbook(indices), cache)
 
     def forward(self, video, *, return_details=False):
         z_q, indices, vq_loss = self.encode(video)
