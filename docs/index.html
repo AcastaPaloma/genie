@@ -604,7 +604,7 @@
               </figcaption>
             </figure>
 
-            <h3>Chained transformer blocks — the encoder</h3>
+            <h3>Chained transformer blocks: the encoder</h3>
             <p>
               Our enriched input is further enriched through 12 spatiotemporal
               transformer blocks to share information among themselves (the
@@ -692,7 +692,7 @@
             </figure>
 
             <h3 id="reconstruction">
-              Chained transformer blocks — the decoder
+              Chained transformer blocks: the decoder
             </h3>
             <p>
               The decoder uses the same type of blocks as the encoder, but
@@ -1503,7 +1503,7 @@
             </figure>
             <p>
               The codes also line up with real Doom inputs grouped into three
-              visual motion classes—left, no turn, and right—63.9% of the time
+              visual motion classes (left, no turn, and right) 63.9% of the time
               against a 49.1% majority-class baseline. The reported effective
               code usage is 7.8 of 8: this is perplexity, not a fractional count
               of active codes.
@@ -1528,7 +1528,7 @@
                 <span class="caption-label">Figure 19.</span> What the eight
                 codes became: mean horizontal camera pan per code at the final
                 epoch, measured on the validation clips. The spread is an
-                ordering, not a calibrated turn rate — a code’s effect varies by
+                ordering, not a calibrated turn rate, since a code’s effect varies by
                 scene.
               </figcaption>
             </figure>
@@ -1542,8 +1542,8 @@
             <p>
               Six epochs of masked token prediction took about 14.5 hours on one
               A100. Cross-entropy on the hidden tokens fell from 7.10 at
-              initialization — close to ln(1024) ≈ 6.93, the score for guessing
-              uniformly among the 1,024 codes — to 1.94. The harder regime,
+              initialization to 1.94. That starting value is close to ln(1024) ≈ 6.93,
+              the score for guessing uniformly among the 1,024 codes. The harder regime,
               where an entire unseen frame is hidden, settled near 3.66, and
               next-frame token accuracy reached 18.0%.
             </p>
@@ -1591,8 +1591,8 @@
               In pixels the picture is more modest. A generated next frame is
               reported at 25.55 dB against 25.47 dB for simply redisplaying the
               previous frame, and six frames into a rollout the gap widens to
-              24.1 dB against 23.3 dB. The direction is right — a static frame
-              decays as a rollout continues, and a world model should not — but
+              24.1 dB against 23.3 dB. The direction is right, since a static frame
+              decays as a rollout continues and a world model should not, but
               at this scale the margin over the trivial baseline stays small.
             </p>
             <figure class="results-figure">
@@ -1618,8 +1618,8 @@
             <p>
               Overall, <a href="https://www.kuant.space/">Kuan</a> and <a href="https://nathanyan.vercel.app/">Nathan</a> trained an implementation of Genie with a
               dynamics model roughly one three-hundredth of the original
-              dynamics model’s size—about one twenty-second for the full system,
-              using the reported counts—where you can steer the result with WASD
+              dynamics model’s size (about one twenty-second for the full system,
+              using the reported counts), where you can steer the result with WASD
               at about 5 frames a second in our demo.
             </p>
             <p>
