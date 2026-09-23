@@ -6,6 +6,7 @@ data/
 *.array_record
 *.mp4
 !/docs/assets/tokenizer-comparison.mp4
+!/docs/assets/demo.mp4
 
 # Local tests and experiments
 /tests/
