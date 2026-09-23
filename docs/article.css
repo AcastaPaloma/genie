@@ -93,15 +93,15 @@ figcaption { font: 12px/1.65 var(--sans); color: var(--secondary); margin-top: 1
 .chart-legend { display: flex; justify-content: flex-end; gap: 19px; margin-top: 16px; font: 11px/1.5 var(--sans); }
 .chart-legend span { display: inline-flex; align-items: center; gap: 7px; }
 .chart-legend i { width: 9px; height: 9px; border-radius: 50%; }
-.ours-key, .ours-dot { background: #416d87; fill: #416d87; }
-.paper-key, .paper-dot { background: #939f92; fill: #939f92; }
+.ours-key, .ours-dot { background: #3358c4; fill: #3358c4; }
+.paper-key, .paper-dot { background: #b07a14; fill: #b07a14; }
 .model-chart, .frame-chart { display: block; width: 100%; height: auto; margin: 14px 0 16px; overflow: visible; }
 .chart-grid { stroke: var(--soft-rule); stroke-width: 1; fill: none; }
 .chart-labels, .chart-values { fill: var(--secondary); font-family: var(--sans); font-size: 14px; }
 .chart-values { fill: var(--ink); font-weight: 600; }
 .chart-join { stroke: #b7c4c5; stroke-width: 2; fill: none; }
-.verified-bar { fill: #537c94; }
-.reported-bar { fill: #dfe7e9; stroke: #537084; stroke-width: 1.5; stroke-dasharray: 4 3; }
+.verified-bar { fill: #3358c4; }
+.reported-bar { fill: #dde3f6; stroke: #3358c4; stroke-width: 1.5; stroke-dasharray: 4 3; }
 .table-scroll { overflow-x: auto; scrollbar-width: thin; }
 table { width: 100%; border-collapse: collapse; font: 13px/1.6 var(--sans); font-variant-numeric: tabular-nums; text-align: left; }
 th, td { padding: 12px 11px; border-bottom: 1px solid var(--soft-rule); }
