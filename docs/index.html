@@ -446,42 +446,14 @@
               and the action leading into each frame.
             </p>
             <figure class="connection-figure">
-              <div
-                class="pipeline"
-                role="img"
-                aria-label="The same video clip feeds two frozen models in parallel: the video tokenizer produces visual token IDs, and the latent action model produces transition vectors. Both feed the dynamics model, which predicts visual token IDs. The tokenizer codebook and decoder convert predicted IDs to RGB frames."
-              >
-                <div class="pipeline-input">
-                  Same video clip <code>[B, T, 96, 160, 3]</code>
-                </div>
-                <div class="pipeline-fork">
-                  <div class="pipeline-branch">
-                    <span class="flow-arrow" aria-hidden="true">↓</span
-                    ><strong>Video tokenizer</strong
-                    ><span>What the frames look like</span
-                    ><code>[B, T, 960] IDs</code>
-                  </div>
-                  <div class="pipeline-branch">
-                    <span class="flow-arrow" aria-hidden="true">↓</span
-                    ><strong>Latent action model</strong
-                    ><span>What changed between them</span
-                    ><code>[B, T − 1, 32] vectors</code>
-                  </div>
-                </div>
-                <div class="pipeline-join" aria-hidden="true">
-                  <span>↘</span><span>↙</span>
-                </div>
-                <div class="pipeline-dynamics">
-                  <strong>Dynamics model</strong
-                  ><span>Visual tokens + incoming action</span
-                  ><span>Predict the hidden visual token IDs</span>
-                </div>
-                <span class="flow-arrow" aria-hidden="true">↓</span>
-                <div class="pipeline-output">
-                  <strong>Tokenizer codebook + decoder</strong
-                  ><span>Predicted IDs back to RGB pixels</span>
-                </div>
-              </div>
+              <img
+                src="assets/pipeline.png"
+                width="960"
+                height="828"
+                loading="lazy"
+                decoding="async"
+                alt="The same batch of videos, shape B by T by 96 by 160 by 3, feeds two models in parallel. The VQ-VAE video tokenizer produces B by T by 960 token IDs; the latent action model produces B by T minus 1 by 32 action vectors. Both feed the dynamics model, which takes visual tokens plus the incoming action and predicts the hidden visual token IDs. Those predicted IDs go back to RGB pixels."
+              />
               <figcaption>
                 <span class="caption-label">Figure 3.</span> Two encoders, two
                 different codebooks. The LAM does not consume the tokenizer’s

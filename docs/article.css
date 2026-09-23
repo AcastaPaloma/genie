@@ -115,18 +115,6 @@ td:not(:first-child), thead th:not(:first-child) { text-align: right; }
 .separate-evaluation th, .separate-evaluation td { border-top: 2px solid var(--rule); }
 .technical-note { font: 13px/1.75 var(--sans); color: var(--secondary); margin: 28px 0; }
 .technical-note strong { color: var(--ink); }
-.pipeline { padding: 26px 32px; background: rgba(250, 251, 249, .7); text-align: center; font-family: var(--sans); font-size: 12px; }
-.pipeline-input { font-weight: 600; }
-.pipeline-input code { display: block; font-weight: 400; background: none; padding-top: 5px; font-size: 11px; }
-.pipeline-fork { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
-.pipeline-branch { display: flex; flex-direction: column; align-items: center; gap: 5px; }
-.pipeline strong { font-size: 14px; }
-.pipeline-branch > span:not(.flow-arrow), .pipeline-dynamics > span, .pipeline-output > span { color: var(--secondary); }
-.pipeline-branch code { font-size: 11px; margin-top: 5px; }
-.flow-arrow { display: block; color: #7c908d; font-size: 23px; line-height: 1.5; font-family: var(--sans); }
-.pipeline-join { display: flex; justify-content: center; gap: 140px; font-size: 24px; line-height: 1.3; color: #7c908d; margin: 6px 0; }
-.pipeline-dynamics { display: flex; flex-direction: column; width: fit-content; margin-inline: auto; padding: 13px 24px; background: #e8eff1; gap: 3px; }
-.pipeline-output { display: flex; flex-direction: column; gap: 4px; }
 .figure-details { margin: 26px 0; }
 .figure-details summary { padding: 14px 0; cursor: pointer; color: var(--accent); font: 12px/1.7 var(--sans); }
 .figure-details[open] { padding-bottom: 14px; }
@@ -172,9 +160,6 @@ td:not(:first-child), thead th:not(:first-child) { text-align: right; }
   h2 { font-size: 28px; }
   h3 { font-size: 22px; }
   .article-header { margin-bottom: 32px; padding-bottom: 28px; }
-  .pipeline { padding-inline: 12px; }
-  .pipeline-fork { gap: 15px; }
-  .pipeline-join { gap: 100px; }
   .chart-labels, .chart-values { font-size: 17px; }
   .table-scroll table { min-width: 420px; }
   .results-figure table { min-width: 550px; }
@@ -188,9 +173,6 @@ td:not(:first-child), thead th:not(:first-child) { text-align: right; }
   h1 { font-size: 58px; }
   .subtitle { font-size: 21px; }
   .article-links { gap: 21px; }
-  .pipeline strong { font-size: 12px; }
-  .pipeline { font-size: 11px; padding-inline: 4px; }
-  .pipeline-branch code { font-size: 9px; }
   .equation { font-size: 17px; gap: 6px; }
   .chart-labels, .chart-values { font-size: 32px; }
 }
