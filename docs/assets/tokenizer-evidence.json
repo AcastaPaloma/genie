@@ -1,0 +1,67 @@
+{
+  "dataset": {
+    "source": "p-doom/doom-dataset",
+    "revision": "4e5c7c6b6c60c7a91690d3b7e54cb7e62d6d1134",
+    "train_shards": 42,
+    "train_clips": 4200,
+    "train_frames": 600000,
+    "source_path": "data/manifest.json"
+  },
+  "historical_test": {
+    "date": "2026-09-14",
+    "num_clips": 256,
+    "num_frames": 4096,
+    "protocol": "Aggregate MSE/PSNR on 90x160 content, excluding six padded rows; same seeded sample for each checkpoint.",
+    "checkpoints": [
+      {
+        "label": "earlier",
+        "source": "data/evaluations/20260914-1538/metrics.json",
+        "step": 5500,
+        "metrics": {
+          "clips": 256,
+          "frames": 4096,
+          "content_mse": 0.0005714744849001363,
+          "content_psnr": 32.430031551452444,
+          "active_codes": 177
+        }
+      },
+      {
+        "label": "saved_best",
+        "source": "data/evaluations/20260914-1957/best/metrics.json",
+        "step": 36000,
+        "metrics": {
+          "clips": 256,
+          "frames": 4096,
+          "content_mse": 0.00018091653475948988,
+          "content_psnr": 37.425217392394316,
+          "active_codes": 197
+        }
+      },
+      {
+        "label": "latest_at_evaluation",
+        "source": "data/evaluations/20260914-1957/latest/metrics.json",
+        "step": 38500,
+        "metrics": {
+          "clips": 256,
+          "frames": 4096,
+          "content_mse": 0.0001977765431036005,
+          "content_psnr": 37.03825218324084,
+          "active_codes": 198
+        }
+      }
+    ]
+  },
+  "final_validation": {
+    "source": "data/exports/vae-20260915/metadata.json",
+    "step": 94500,
+    "num_clips": 4,
+    "metrics": {
+      "mse": 9.267499717680039e-05,
+      "psnr": 40.330374185285045,
+      "active_codes": 201,
+      "total_codes": 1024,
+      "perplexity": 127.45638706574114
+    }
+  },
+  "draft_only": "Reduced LAM/dynamics parameter counts, exact 144000-frame subsets, LAM 2.49 delta PSNR, 63.9% agreement / 49.1% majority baseline, 7.8 perplexity, 5 FPS and 360-degree observations have no matching local run artifacts."
+}
