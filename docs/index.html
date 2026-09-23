@@ -79,8 +79,24 @@
                   <li><a href="#feed-forward">Feed-forward network</a></li>
                 </ol>
               </li>
-              <li><a href="#lam">Latent action model</a></li>
-              <li><a href="#dynamics">Dynamics model</a></li>
+              <li>
+                <a href="#lam">Latent action model</a>
+                <ol>
+                  <li><a href="#lam-encoder">LAM encoder</a></li>
+                  <li><a href="#lam-decoder">LAM decoder</a></li>
+                  <li><a href="#lam-training">LAM training</a></li>
+                </ol>
+              </li>
+              <li>
+                <a href="#dynamics">Dynamics model</a>
+                <ol>
+                  <li><a href="#dynamics-inputs">Inputs and masking</a></li>
+                  <li><a href="#maskgit">MaskGIT sampling</a></li>
+                  <li>
+                    <a href="#dynamics-training">Training the dynamics model</a>
+                  </li>
+                </ol>
+              </li>
               <li><a href="#results">Results</a></li>
               <li><a href="#conclusion">Conclusion</a></li>
               <li><a href="#references">References</a></li>
@@ -1110,7 +1126,7 @@
               actions inside the initial prompt clip.
             </p>
 
-            <h3>LAM encoder</h3>
+            <h3 id="lam-encoder">LAM encoder</h3>
             <p>
               During training, the encoder takes in a batch of images with
               height, width, channel dimensions of <code>[96, 160, 3]</code>.
@@ -1195,7 +1211,7 @@
               </figure>
             </details>
 
-            <h3>LAM decoder</h3>
+            <h3 id="lam-decoder">LAM decoder</h3>
             <p>
               The LAM decoder takes in the action, and a continuous set of
               frames, and reconstructs the potential future frame <var>f</var> +
@@ -1235,7 +1251,7 @@
               </figure>
             </details>
 
-            <h3>LAM training</h3>
+            <h3 id="lam-training">LAM training</h3>
             <p>
               To train the LAM via unsupervised learning, we first input the
               frames, batches, and images into the encoder. Afterwards, we take
@@ -1280,10 +1296,15 @@
             <p>
               The dynamics model is the final model in the Genie paper. It turns
               the output from the video autoencoder and latent action model into
-              a new, future frame’s tokens. We first input the autoencoder’s
-              token IDs, each giving 1,024 options. Because we don’t want the
-              model to see the answers at the positions it must predict, we mask
-              those IDs and embed them into 512-length vectors.
+              a new, future frame’s tokens.
+            </p>
+
+            <h3 id="dynamics-inputs">Inputs and masking</h3>
+            <p>
+              We first input the autoencoder’s token IDs, each giving 1,024
+              options. Because we don’t want the model to see the answers at the
+              positions it must predict, we mask those IDs and embed them into
+              512-length vectors.
             </p>
             <p>
               We also input the latent action model output, which is first put
@@ -1302,6 +1323,7 @@
               created logits over the 1,024 codebook IDs at each of the 960
               patch positions.
             </p>
+            <h3 id="maskgit">MaskGIT sampling</h3>
             <p>
               Instead of argmaxxing one specific ID, we sample candidates and
               refine them across three dynamics-model passes. Each pass keeps
@@ -1334,7 +1356,7 @@
               </figcaption>
             </figure>
 
-            <h3>Training the dynamics model</h3>
+            <h3 id="dynamics-training">Training the dynamics model</h3>
             <p>
               We take a real 16-frame clip, tokenize it with the frozen
               autoencoder, and get its action codes from the frozen LAM. Then we
