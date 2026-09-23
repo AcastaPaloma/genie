@@ -132,7 +132,7 @@ thead th { border-bottom-color: var(--rule); }
 td:not(:first-child), thead th:not(:first-child) { text-align: right; }
 .total-row th, .total-row td { border-top: 1px solid var(--rule); border-bottom: 0; font-weight: 600; }
 .separate-evaluation th, .separate-evaluation td { border-top: 2px solid var(--rule); }
-.technical-note { padding: 4px 0 4px 16px; border-left: 2px solid var(--soft-rule); font: 13px/1.75 var(--sans); color: var(--secondary); margin: 28px 0; }
+.technical-note { font: 13px/1.75 var(--sans); color: var(--secondary); margin: 28px 0; }
 .technical-note strong { color: var(--ink); }
 .pipeline { padding: 26px 32px; background: rgba(250, 251, 249, .7); text-align: center; font-family: var(--sans); font-size: 12px; }
 .pipeline-input { font-weight: 600; }
