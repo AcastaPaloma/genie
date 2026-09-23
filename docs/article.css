@@ -94,7 +94,7 @@ figcaption { font: 12px/1.65 var(--sans); color: var(--secondary); margin-top: 1
 .chart-legend span { display: inline-flex; align-items: center; gap: 7px; }
 .chart-legend i { width: 9px; height: 9px; border-radius: 50%; }
 .ours-key, .ours-dot { background: #3358c4; fill: #3358c4; }
-.paper-key, .paper-dot { background: #b07a14; fill: #b07a14; }
+.paper-key, .paper-dot { background: #8ea9ee; fill: #8ea9ee; }
 .model-chart, .frame-chart { display: block; width: 100%; height: auto; margin: 14px 0 16px; overflow: visible; }
 .chart-grid { stroke: var(--soft-rule); stroke-width: 1; fill: none; }
 .chart-labels, .chart-values { fill: var(--secondary); font-family: var(--sans); font-size: 14px; }
