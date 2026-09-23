@@ -93,10 +93,11 @@ class ChunkLoaderPool{
  * unsharp local-contrast term, and a saturation factor. It reweights light the simulation produced; it adds
  * no video content and no per-branch colour. Unsupported texels carry -1 and are skipped, never averaged. */
 const DISPLAY_GLSL=`
-uniform vec2 levels;uniform float gamma;uniform float sharpen;uniform float saturation;uniform vec2 displayTexel;uniform float floorLevel;uniform vec2 pixelCells;
+uniform vec2 levels;uniform float gamma;uniform float sharpen;uniform float saturation;uniform vec2 displayTexel;uniform float floorLevel;uniform vec2 pixelCells;uniform vec2 pixelOrigin;uniform float brightness;
 float tone(float v){
   float x=levels.y>levels.x?clamp((v-levels.x)/(levels.y-levels.x),0.0,1.0):clamp(v,0.0,1.0);
   if(gamma!=1.0)x=pow(x,gamma);
+  x=clamp(x*brightness,0.0,1.0);
   // Lift the black point off zero: a supported texel stays visible against the background even when the
   // stretch puts it at the bottom of the range, so the outer arbors never drop out of the silhouette.
   return floorLevel+(1.0-floorLevel)*x;
@@ -150,7 +151,7 @@ export class FullBrainView {
   private regionCounts:{neurons:number;vertices:number;edges:number}|null=null;
   private maskedActivity:Float32Array|null=null;
   private paletteUniform={value:0};
-  private display={levels:{value:new THREE.Vector2(0,0)},gamma:{value:1},sharpen:{value:0},saturation:{value:1},displayTexel:{value:new THREE.Vector2(1,1)},floorLevel:{value:0},pixelCells:{value:new THREE.Vector2(0,0)}};
+  private display={levels:{value:new THREE.Vector2(0,0)},gamma:{value:1},sharpen:{value:0},saturation:{value:1},displayTexel:{value:new THREE.Vector2(1,1)},floorLevel:{value:0},pixelCells:{value:new THREE.Vector2(0,0)},pixelOrigin:{value:new THREE.Vector2(0,0)},brightness:{value:1}};
   private autoLevels=false;
   private levelRange:[number,number]|null=null;
   private cacheGeometry:{center:number[];footprint:number[];resolution:number[]}|null=null;
@@ -332,7 +333,9 @@ export class FullBrainView {
     }finally{pool.dispose();}
   }
 
-  async loadLightCache(directory:string){
+  /** onProgress reports cache blocks as they are verified and uploaded. The
+   * worker has always reported them; nothing consumed it before. */
+  async loadLightCache(directory:string,onProgress:(loaded:number,total:number)=>void=()=>{}){
     if(this.lightWorker)throw Error('Anatomical cache already loaded.');
     const worker=this.lightWorker=new Worker(new URL('./anatomical-light.worker.ts',import.meta.url),{type:'module'});
     await new Promise<void>((resolve,reject)=>{
@@ -340,6 +343,7 @@ export class FullBrainView {
       worker.onmessage=event=>{
         const m=event.data;
         if(m.type==='error'){const error=Error(m.message);reject(error);this.lightPending?.reject(error);this.lightPending=null;return;}
+        if(m.type==='progress'){onProgress(m.loaded,m.total);return;}
         if(m.type==='ready'){
           if(m.neurons!==this.meta.neuronCount||m.branches!==this.meta.edgeCount){reject(Error('Anatomical cache coverage differs.'));return;}
           this.cacheInfo={resolution:m.resolution,entries:m.entries,branches:m.branches,computeMs:0};
@@ -358,7 +362,7 @@ export class FullBrainView {
               void main(){vec2 uv=vec2(imageUV.x,1.0-imageUV.y);
                 bool blocky=pixelCells.x>0.0;
                 vec2 step=blocky?1.0/pixelCells:displayTexel;
-                if(blocky)uv=(floor(uv*pixelCells)+0.5)/pixelCells;
+                if(blocky)uv=pixelOrigin+(floor((uv-pixelOrigin)*pixelCells)+0.5)/pixelCells;
                 float raw=blocky?cellLight(uv,step):texture2D(light,uv).r;if(raw<0.0){discard;}
                 float value=raw*exposure;
                 if(sharpen>0.0){float blur=0.0,weight=0.0;
@@ -488,16 +492,18 @@ export class FullBrainView {
   }
   setExposure(value:number){this.composite.uniforms.exposure.value=value;this.dirty=true;}
   /** Display processing of the simulated light only: level stretch, gamma, local contrast, saturation. */
-  setDisplay(options:{autoLevels?:boolean;gamma?:number;sharpen?:number;saturation?:number;floor?:number;pixelCells?:[number,number]|null}){
+  setDisplay(options:{autoLevels?:boolean;gamma?:number;sharpen?:number;saturation?:number;floor?:number;brightness?:number;pixelCells?:[number,number]|null;pixelOrigin?:[number,number]|null}){
     if(options.autoLevels!==undefined){this.autoLevels=options.autoLevels;if(!options.autoLevels){this.levelRange=null;this.display.levels.value.set(0,0);}}
     if(options.gamma!==undefined)this.display.gamma.value=options.gamma;
     if(options.sharpen!==undefined)this.display.sharpen.value=Math.max(0,options.sharpen);
     if(options.saturation!==undefined)this.display.saturation.value=Math.max(0,options.saturation);
     if(options.floor!==undefined)this.display.floorLevel.value=Math.min(.5,Math.max(0,options.floor));
+    if(options.brightness!==undefined)this.display.brightness.value=Math.min(3,Math.max(.05,options.brightness));
     if(options.pixelCells!==undefined)this.display.pixelCells.value.set(...(options.pixelCells??[0,0]) as [number,number]);
+    if(options.pixelOrigin!==undefined)this.display.pixelOrigin.value.set(...(options.pixelOrigin??[0,0]) as [number,number]);
     this.dirty=true;
   }
-  getDisplay(){return {autoLevels:this.autoLevels,gamma:this.display.gamma.value,sharpen:this.display.sharpen.value,saturation:this.display.saturation.value,floor:this.display.floorLevel.value,pixelCells:this.display.pixelCells.value.toArray(),levels:this.display.levels.value.toArray()};}
+  getDisplay(){return {autoLevels:this.autoLevels,gamma:this.display.gamma.value,sharpen:this.display.sharpen.value,saturation:this.display.saturation.value,floor:this.display.floorLevel.value,brightness:this.display.brightness.value,pixelCells:this.display.pixelCells.value.toArray(),pixelOrigin:this.display.pixelOrigin.value.toArray(),levels:this.display.levels.value.toArray()};}
   /** Stretch to the light range of the pixels actually on screen: 2nd and 99.5th percentile of the lit
    * ones inside the current framing (0.5th and 99.5th percentile), smoothed over frames. Unsupported
    * texels (-1) are excluded, and floorLevel keeps the dimmest supported ones above the background. */

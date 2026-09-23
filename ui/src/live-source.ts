@@ -17,7 +17,7 @@ export class LiveSource {
   frameSerial=0;
   mediaTime=0;
   decodedAt=0;
-  constructor(readonly preview:HTMLCanvasElement,readonly width:number,readonly height:number,private aperture?:{x:number;y:number;width:number;height:number}){
+  constructor(readonly preview:HTMLCanvasElement,readonly width:number,readonly height:number,private aperture?:{x:number;y:number;width:number;height:number;feather?:number;featherY?:number}){
     this.video.muted=true;this.video.loop=true;this.video.playsInline=true;this.video.preload='auto';
     this.canvas.width=width;this.canvas.height=height;this.context=this.canvas.getContext('2d',{willReadFrequently:true})!;
     const presented=(_now:number,meta:VideoFrameCallbackMetadata)=>{this.frameSerial++;this.mediaTime=meta.mediaTime;this.decodedAt=performance.now();this.video.requestVideoFrameCallback(presented);};
@@ -63,6 +63,22 @@ export class LiveSource {
     const image:CanvasImageSource=this.producer?this.producer.canvas:this.video,iw=this.sourceWidth,ih=this.sourceHeight;
     const scale=Math.min(area.width/iw,area.height/ih),sw=iw*scale,sh=ih*scale;
     ctx.drawImage(image,area.x+(area.width-sw)/2,area.y+(area.height-sh)/2,sw,sh);
+    // Fade the picture out over `feather` pixels instead of ending on a hard edge; the controller then asks
+    // the neurons just outside it for a falling brightness rather than a step down to black.
+    const feather=this.aperture?.feather??0,featherY=this.aperture?.featherY??feather;
+    if(feather>0||featherY>0){
+      const x0=area.x+(area.width-sw)/2,y0=area.y+(area.height-sh)/2;
+      const edge=Math.min(feather,sw/2),edgeY=Math.min(featherY,sh/2);
+      ctx.save();ctx.globalCompositeOperation='destination-out';
+      const ramp=(x1:number,y1:number,x2:number,y2:number)=>{
+        const g=ctx.createLinearGradient(x1,y1,x2,y2);
+        g.addColorStop(0,'rgba(0,0,0,1)');g.addColorStop(1,'rgba(0,0,0,0)');return g;};
+      if(edge>0){ctx.fillStyle=ramp(x0,0,x0+edge,0);ctx.fillRect(x0,y0,edge,sh);
+        ctx.fillStyle=ramp(x0+sw,0,x0+sw-edge,0);ctx.fillRect(x0+sw-edge,y0,edge,sh);}
+      if(edgeY>0){ctx.fillStyle=ramp(0,y0,0,y0+edgeY);ctx.fillRect(x0,y0,sw,edgeY);
+        ctx.fillStyle=ramp(0,y0+sh,0,y0+sh-edgeY);ctx.fillRect(x0,y0+sh-edgeY,sw,edgeY);}
+      ctx.restore();
+    }
     this.lastCapture=ctx.getImageData(0,0,w,h);if(showPreview)this.present(this.lastCapture);
     const pixels=this.lastCapture.data,values=new Float32Array(w*h);
     for(let i=0;i<values.length;i++)values[i]=(.2126*pixels[4*i]+.7152*pixels[4*i+1]+.0722*pixels[4*i+2])/255;

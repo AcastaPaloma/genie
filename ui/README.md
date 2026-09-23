@@ -90,7 +90,60 @@ MaskGIT passes, where the earlier pair collapsed on 2 of 24 clips at 4 passes. I
 is lower, 18% against 23%, because token accuracy is measured in each tokenizer's own codes and is not
 comparable between them; judge a pair on picture quality against the copy-last baseline instead.
 
-Press **Play world model** under *Your stimulus*, then **Start experiment**. Generated frames leave the
+Press **Play world model** under *Your stimulus*, then **Start experiment**.
+
+**Remote generation and pipelining.** The world model can run on a GPU box reached through an ssh tunnel
+(`ssh -f -N -L 8008:localhost:8021 piano`, then `WORLD_MODEL_URL=http://127.0.0.1:8008 npm run dev`). On an
+A100 a frame takes 39-47 ms against 220 ms on the Mac, but the tunnel costs about 172 ms per round trip, so
+one request at a time gives no gain. The client therefore keeps several step requests in flight and presents
+the frames strictly in request order. The depth is measured, not assumed, since the page reaches the server
+through a proxy and cannot tell local from remote: it targets round trip / server time, capped at 4, which
+lands on 1 for a local server and 4 through a tunnel. `?inflight=` fixes it manually.
+
+Measured end to end with nothing else driving the server: 3.4 generated frames/s before, 20.7-23.3 after,
+with the brain rising from 4 to 9-10 displays/s because the world model no longer competes for the local
+GPU. Round trip 159-171 ms, server time 35-36 ms, adaptive depth settling at 4. The cost is stated in the status
+line: at depth 4 about 170-200 ms of play is already committed when you change key. Deeper than 4 adds lag
+without frames, because the server serializes behind one lock and saturates near 23 frames/s. Transient
+connection drops are retried three times before the game stops, since tunnels do drop.
+
+**Air mode.** `G` lifts the fly off the floor: the body worker sets gravity to zero, kicks it upward and
+spins it, while the gait controller keeps running its measured step trajectories, so the legs flail with
+nothing underneath them. The fly label says so while it is on, `R` and toggling `G` again land it, and the
+page stops auto-righting the fly while it is airborne, since a low-gravity tumble looks exactly like having
+fallen over. It needs the browser physics backend; the native MuJoCo service has no gravity control and the
+label says so.
+
+**Frame-rate cap.** The A100 can generate about 23 frames/s, which turned out to be faster than the picture
+reads: the brain's light is a 40 ms trace and the scene changes faster than the eye follows it. The play page
+therefore aims for 5 generated frames/s by default (`?fps=`, `?fps=max` for as fast
+as the server allows), because the A100 can produce about 23/s and that is faster than the picture reads.
+**K** and **L** change it live. Capping also shortens the control lag: the client then queues only deep
+enough to cover the wire within one frame interval, so at 5 frames/s it runs one request at a time and
+commits about 170 ms rather than 4 frames.
+
+**One driver at a time.** `play_server.py` serializes every client behind a single lock and keeps one
+generation state: one context cache, one prompt clip. A second client does not merely halve the frame rate,
+it interleaves its own actions into the same world, and a benchmark running alongside a player will make
+both look slow and behave strangely. Multi-client play would need per-connection cache state and the GPU
+memory for it.
+
+**Screens.** `T` cycles the play page between all three panels, the brain alone, the generated game alone,
+and the fly alone; `?screen=` picks one at load. Everything keeps running while hidden: the world model
+still generates, the simulation still integrates every frame, and the body still steps.
+
+**What the eight latent codes do**, measured on the deployed pair by holding each code for five steps from
+four prompts, as mean camera turn per step (positive = the camera turns right) with its spread across scenes:
+code 0 +11.3 (sd 1.3), 6 +10.6 (2.6), 7 +3.7 (9.9), 4 +1.2 (8.4), 1 -1.3 (8.9), 2 -4.7 (8.2), 3 -4.9 (9.0),
+5 -7.5 (6.2). The spread above is step to step within a fixed prompt set; the per-code mean itself moves with the scene,
+so code 0 measured +11.3 on one prompt set and +2.0 on another. **Read the table as an ordering of the
+codes, not as a turn rate**: 0 and 6 are the rightmost, 5 the leftmost, 1 and 4 the middle, but the
+magnitude depends on the room. The default key map puts the two steadiest codes on the plain keys
+(`D` = 0, `A` = 5). The turn figure in the heads-up display is the last step only, so it can read the
+opposite sign for one frame when the context cache restarts; judge a key by several held steps.
+No code fires the weapon: the weapon band moves by at most 0.02 for any of them, because ATTACK is a single
+rare action id that an 8-code alphabet never spent a slot on. Every code also walks the player forward, so
+releasing all keys is the only way to stand still. Generated frames leave the
 client through a canvas `MediaStream`, so the same `LiveSource` capture and the same controller receive
 them as any decoded video: the brain forms each frame the model produces. Hold **A** / **D** to turn (this
 LAM's latent actions are a camera-pan quantizer; **W** / **S** are its two no-turn codes; **0**–**7** send
@@ -104,10 +157,43 @@ testing; `?keys=` overrides.
 fly across the bottom, no clips, file input or inspector. It connects to the world model by itself and
 starts as soon as the anatomy is uploaded. Keys: A / D turn, R new prompt (also resets brain and body),
 Q and [ ] passes, Space pause, P cycle colours, V brain viewpoint, B fly viewpoint; `?palette=`, `?steps=`,
-`?world=` work as on live.html. Its fly uses an **arcade motor adapter**, labelled on the page: the same
-descending-neuron readout as live.html amplified by `?bodyGain=` (default 4) plus a twitch scaled by the
-brain's mean spike rate (`?twitch=`, default 1, 0 disables), with physics paced by the wall clock rather
-than 100 ms per neural frame. It is not the measured adapter and makes no claim about real fly motor control.
+`?world=` work as on live.html. Its fly uses an **arcade motor adapter**, labelled on the page: the descending-neuron readout amplified by
+`?bodyGain=` (default 9), a twitch scaled by the brain's mean spike rate (`?twitch=`, default 2, 0 disables)
+that beats two frequencies against each other and quickens with the firing rate, physics paced by the wall
+clock, and a `?bodySpeed=` multiplier (default 3) that runs the body clock faster than real time. **,** and
+**.** change both gains live. The page also asks the controller for a much higher firing rate than
+live.html, `?rate=` (default 840 against live.html's 180). Measured over 12-second runs: mean rate 19 Hz ->
+48 Hz, spikes 1.05M/s -> 2.6M/s, distance travelled 11.5 -> about 40 units.
+
+Two limits found while tuning. The mean firing rate saturates near 50 Hz: asking for 1400 or 2800 gives no
+more than 840 does, because thresholds and refractory periods bound it. And driving the gait adapter past
+about 1.3 stops it walking, so the fly shuffles on the spot; extra speed has to come from `bodySpeed`, not
+from more drive. `?rate=180&bodyGain=4&twitch=1&bodySpeed=1&drive=1.2` restores the earlier behaviour.
+
+On `play.html` the frame is **placed where the anatomy can show it** rather than letterboxed across the
+whole raster, and the camera frames exactly that area so the entire picture is on screen. Share of each
+band's pixels that have any branch behind them, measured on `whole-arbor-640` (content rows 0-59 scene,
+60-77 weapon, 78-89 status bar), with the share of the brain's cable inside the rectangle:
+
+| `?frame=` | placement | scene | weapon | status bar | worst row | cable |
+|---|---|---|---|---|---|---|
+| `full` | 640 x 360 at (0, 60), letterboxed | 59.7% | 58.0% | 5.1% | 0.0% | 100% |
+| `band` | 480 x 270 at (78, 60) | 58.4% | 98.8% | 85.2% | 0.0% | 75.6% |
+| `tight` (default) | 320 x 180 at (172, 132) | 97.8% | 98.6% | 92.7% | 79.2% | 46.7% |
+| `strict` | 224 x 126 at (351, 181) | 100% | 100% | 100% | 100% | 23.5% |
+
+**Worst row is the number to watch.** `band` and `full` each contain a row of the picture with no cable
+behind it at all, which no average reveals and which is what a viewer reads as the top being cut off.
+
+`tight` is not a quality compromise: it beats `band` by 39 points on the moving scene and 7 on the status
+bar. What `band` buys is a claim about the brain, not the picture, since `tight` leaves 53% of the cable
+outside the picture area, so more than half the anatomy no longer carries image content.
+
+The letterboxed mapping puts the lower rows of the frame below the brain's ventral edge, where there is no
+cable to light, which is why its status bar cannot appear. `tight` puts the whole picture on supported
+anatomy at the cost of using fewer of the brain's branches; `band` keeps more of the brain at the cost of
+half the scene. The picture's edges fade out over 8 raster pixels instead of ending hard. `?focus=bottom`
+or `whole` restore the earlier region framings.
 
 The brain image can also be snapped to the game's own pixel grid, cycled with **Z** and selected with
 `?pixels=`: `game pixels` (default) uses one cell per pixel of the generated frame, since the controller
@@ -122,7 +208,9 @@ reports 0.0050 against 0.0264 for full detail. Measured at a common 19-pixel cel
 concentrates structure at the cell scale rather than removing it.
 
 On `play.html` the brain view also runs **display processing of the simulated light**, stated in the
-brain label and cycled with **X**: `refined` (default), `punchy`, `raw`. It stretches each frame to the
+brain label and cycled with **X**: `refined` (default), `punchy`, `raw`. Overall brightness is separate, on **-** and **=** (or `?brightness=`,
+default 0.65), because the picture area concentrates the light and the right level depends on the room and
+the screen. It stretches each frame to the
 light range of the pixels actually on screen (2nd to 99.5th percentile, smoothed across frames), applies
 gamma, an unsharp local-contrast term that skips unsupported texels, and a saturation factor. It is a
 monotone reweighting of light the simulation produced: no video content and no per-branch colour enter it,
