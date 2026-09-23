@@ -1473,14 +1473,15 @@
               marked where they appear.
             </p>
             <p>
-              The latent action model trained with no action labels at all,
-              reached a reported ΔPSNR of 2.49, meaning its next-frame
-              prediction is about 2.5 dB worse with a random code than with the
-              one it inferred. Genie reports 1.91 for the 2.5B pixel-input model
-              in its platformer ablation. That is a reference point, not a
-              controlled comparison: the datasets differ, and Genie reports its
-              metric at <var>t</var> = 4 while our scoring code also averages
-              across transitions.
+              The latent action model trained with no action labels at all, and
+              its ΔPSNR reached 2.49: its own decoder predicts the next frame
+              about 2.5 dB worse when handed a random code instead of the one it
+              inferred. Read that as an internal check that the codes carry
+              motion, not as a controllability score. It is measured on the LAM
+              decoder, which is trained on exactly that task, so it says nothing
+              about the world model a player interacts with. The controllability
+              number for the full system is the dynamics model’s action effect
+              below.
             </p>
             <figure class="results-figure">
               <img
@@ -1489,13 +1490,14 @@
                 height="820"
                 loading="lazy"
                 decoding="async"
-                alt="Line chart: ΔPSNR rises from 0 at epoch 0 to about 2.5 by epoch 12, crossing Genie's reported 1.91 at epoch 4."
+                alt="Line chart: the LAM's ΔPSNR rises from 0 at epoch 0 to about 2.5 by epoch 12."
               />
               <figcaption>
                 <span class="caption-label">Figure 18.</span> ΔPSNR by epoch,
-                from the checkpoint’s own evaluation history. The dashed line
-                marks Genie’s reported 1.91, which is a reference point rather
-                than a matched evaluation.
+                from the checkpoint’s own evaluation history. This is the LAM
+                decoder scoring the task it was trained on, so it measures
+                whether the codes carry motion, not how controllable the world
+                model is.
               </figcaption>
             </figure>
             <p>
@@ -1620,12 +1622,12 @@
               at about 5 frames a second in our demo.
             </p>
             <p>
-              The latent action model was surprisingly accurate. Given only raw
-              frames, it sorted camera motion into eight buckets and reached a
-              reported ΔPSNR above Genie’s platformer result, though not under a
-              matched evaluation. In our observations, that gap grew over longer
-              rollouts, and the action effect was still climbing when we ran out
-              of time.
+              The latent action model was the surprise. Given only raw frames and
+              no action labels, it sorted camera motion into eight buckets that
+              agree with real Doom turns well above chance. Whether the world
+              model itself listens to those codes is a separate question, and
+              the dynamics model’s action effect answers it: still climbing when
+              we ran out of time.
             </p>
             <p>
               One cool attribute was memory within the world model. If one did a
