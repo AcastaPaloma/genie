@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#fafbf9">
+  <meta name="description" content="Recreating Genie for Doom: an illustrated walkthrough of the video tokenizer, spatiotemporal transformer, latent action model, and dynamics model.">
+  <meta property="og:title" content="GENIE — Recreating a world model for Doom">
+  <meta property="og:description" content="An illustrated walkthrough, from pixels to latent actions to a playable world.">
+  <meta property="og:type" content="article">
+  <title>GENIE — Recreating a world model for Doom</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="assets/source-serif-regular.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="stylesheet" href="article.css">
+  <script src="article.js" defer></script>
+</head>
+<body>
+  <!--
+  THESIS: A readable research manuscript on pale mathematics paper, preserving the author's voice and drawings; not a product landing page.
+  OWN-WORLD: Near-white squared paper, graphite type, restrained blue links, Source Serif 4, unboxed prose, captioned illustrations and ruled tables.
+  STORY: Read the motivation, understand the three-model connection, follow each component, then distinguish recorded results from demo observations.
+  FIRST VIEWPORT: Persistent left contents, manuscript title and source links above the introduction; a narrow reading column surrounded by open paper.
+  FORM: User-pinned graph-paper manuscript. Seed: brief-pinned; selection script required absent product record, so no random alternative supersedes this brief.
+  FINISH: Preserve prose; correct only authorized factual errors; verify desktop/mobile navigation, figures and publication paths. No changes to model or existing UI.
+  -->
+  <a class="skip-link" href="#article">Skip to article</a>
+  <div class="page-layout">
+    <aside class="contents-rail" aria-label="Article navigation">
+      <a class="rail-title" href="#top">GENIE</a>
+      <details class="contents" open>
+        <summary>Contents <svg class="contents-toggle" aria-hidden="true" width="14" height="14" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></summary>
+        <nav aria-label="Table of contents">
+          <ol>
+            <li><a href="#introduction" aria-current="location">Introduction</a></li>
+            <li><a href="#context">Context on Genie</a></li>
+            <li><a href="#dataset">Dataset</a></li>
+            <li><a href="#connection">How the pieces connect</a></li>
+            <li><a href="#vq-vae">VQ-VAE</a>
+              <ol>
+                <li><a href="#patchification">Patchification</a></li>
+                <li><a href="#quantization">Quantization</a></li>
+                <li><a href="#reconstruction">Decoding & reconstruction</a></li>
+              </ol>
+            </li>
+            <li><a href="#st-transformer">ST-transformer</a>
+              <ol>
+                <li><a href="#spatial-attention">Spatial attention</a></li>
+                <li><a href="#temporal-attention">Temporal attention</a></li>
+                <li><a href="#feed-forward">Feed-forward network</a></li>
+              </ol>
+            </li>
+            <li><a href="#lam">Latent action model</a></li>
+            <li><a href="#dynamics">Dynamics model</a></li>
+            <li><a href="#results">Results</a></li>
+            <li><a href="#conclusion">Conclusion</a></li>
+            <li><a href="#references">References</a></li>
+          </ol>
+        </nav>
+      </details>
+      <a class="rail-source" href="https://github.com/AcastaPaloma/genie3">View the code <span aria-hidden="true">↗</span></a>
+    </aside>
+
+    <main id="article" tabindex="-1">
+      <article>
+        <header class="article-header" id="top">
+          <h1>GENIE</h1>
+          <p class="subtitle">Recreating a world model for Doom</p>
+          <div class="article-links" aria-label="Project resources">
+            <a href="https://github.com/AcastaPaloma/genie3">Code</a>
+            <a href="https://arxiv.org/html/2402.15391v1">Original paper</a>
+            <a href="https://drive.google.com/file/d/1yvzdWnghQj__OAlBnwhqR9BjTg9hTDb7/view">Demo video</a>
+          </div>
+        </header>
+
+        <section aria-labelledby="introduction">
+          <h2 id="introduction">Introduction</h2>
+          <p>The generation of interactive scenes is insanely cool. From Etched and Decart’s <a href="https://oasis-model.github.io/">Oasis</a> to <a href="https://mira-wm.com/">General Intuition’s MIRA</a>, the use of world models as playable environments is fascinating. Because of our everlasting curiosity, Kuan and I recreated Google’s <a href="https://arxiv.org/html/2402.15391v1">Genie paper</a> specifically to run Doom on <a href="https://blog.google/innovation-and-ai/technology/research/male-fruit-fly-brain-map/">Google’s Fly connectome</a>.</p>
+        </section>
+
+        <section aria-labelledby="context">
+          <h2 id="context">Context on Genie</h2>
+          <p>Genie showed that large-scale unsupervised learning from unlabelled video could produce action-controllable environments. Through the use of platformer game data, DeepMind researchers created a world model which could turn image prompts into playable scenes, without ground-truth action labels. Text prompts could first be turned into images using a separate text-to-image model.</p>
+          <p>Peak signal-to-noise ratio (PSNR) measures how close the predicted image is to the real image via mean squared error, in decibels (dB). Genie uses the change in PSNR between inferred and random actions to measure controllability; reconstruction PSNR alone does not prove that a world is controllable.<sup><a href="#ref-genie" aria-label="Reference 1">[1]</a></sup></p>
+          <p>The Genie paper is made of three distinct components: a latent action model, a video tokenizer, and a dynamics model. The three models collaborate together in order to achieve <strong>action-controllable video generation without action labels.</strong></p>
+
+          <h3>Differences between our implementation and the original Genie</h3>
+          <ul>
+            <li>8 ST-transformer blocks in our smaller dynamics model versus 48 for Genie.</li>
+            <li>Hyperparameter differences (compute gap).</li>
+            <li>Genie had about 1.1 billion frames; our draft reports 144,000 for LAM and dynamics, with a larger 600,000-frame corpus for the tokenizer.</li>
+            <li>3 passes of MaskGIT at play time, rather than the paper’s 25.</li>
+            <li>Data is only one specific game relative to their multi-platformer dataset.</li>
+            <li>We train the LAM separately and freeze it for dynamics training; the paper co-trains LAM and dynamics.</li>
+          </ul>
+
+          <figure class="chart-figure" id="model-size">
+            <div class="figure-heading">Model size <span>Millions of parameters · logarithmic scale</span></div>
+            <div class="chart-legend"><span><i class="ours-key"></i>Ours, reported</span><span><i class="paper-key"></i>Genie</span></div>
+            <svg class="model-chart" viewBox="0 0 720 220" role="img" aria-labelledby="size-title size-desc">
+              <title id="size-title">Reported model sizes compared with Genie</title>
+              <desc id="size-desc">Tokenizer: ours 388 million, Genie 200 million. LAM: ours 68.6 million, Genie 300 million. Dynamics: ours 35.2 million, Genie 10,100 million. Positions use a logarithmic scale. Exact values and totals follow in the table.</desc>
+              <g class="chart-grid"><path d="M150 24V174M300 24V174M450 24V174M600 24V174"/></g>
+              <g class="chart-labels"><text x="130" y="56" text-anchor="end">Tokenizer</text><text x="130" y="111" text-anchor="end">LAM</text><text x="130" y="166" text-anchor="end">Dynamics</text><text x="150" y="204" text-anchor="middle">10M</text><text x="300" y="204" text-anchor="middle">100M</text><text x="450" y="204" text-anchor="middle">1B</text><text x="600" y="204" text-anchor="middle">10B</text></g>
+              <g class="chart-join"><path d="M345 51H388M275 106H372M232 161H601"/></g>
+              <g class="paper-dot"><circle cx="345" cy="51" r="6"/><circle cx="372" cy="106" r="6"/><circle cx="601" cy="161" r="6"/></g>
+              <g class="ours-dot"><circle cx="388" cy="51" r="6"/><circle cx="275" cy="106" r="6"/><circle cx="232" cy="161" r="6"/></g>
+            </svg>
+            <div class="table-scroll" tabindex="0" role="region" aria-label="Model parameter comparison">
+              <table>
+                <thead><tr><th scope="col">Model</th><th scope="col">Ours</th><th scope="col">Genie</th><th scope="col">Ratio</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">Tokenizer</th><td>388.0M</td><td>200M</td><td>1.9× bigger</td></tr>
+                  <tr><th scope="row">LAM</th><td>68.6M</td><td>300M</td><td>4.4× smaller</td></tr>
+                  <tr><th scope="row">Dynamics</th><td>35.2M</td><td>10.1B</td><td>287× smaller</td></tr>
+                  <tr class="total-row"><th scope="row">Total</th><td>491.8M</td><td>10.7B</td><td>22× smaller</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <figcaption><span class="caption-label">Figure 1.</span> Model sizes reported in the draft, compared with the original paper. The tokenizer count is documented in the repo; the smaller LAM and dynamics counts are not backed by local checkpoint metadata. These are not the repository’s full-size constructor defaults. Genie’s rounded total is quoted as reported.<sup><a href="#ref-config" aria-label="Reference 2">[2]</a></sup></figcaption>
+          </figure>
+
+          <h3>High-level summary</h3>
+          <ul>
+            <li>The video tokenizer turns the video frames into a smaller, richer latent space for the dynamics model.</li>
+            <li>The latent action model takes in a batch of frames, and maps the actions between each frame.</li>
+            <li>The dynamics model takes in the video tokenizer output and the latent action model output, and predicts the next frame’s tokens. The tokenizer’s decoder turns those tokens into an output frame.</li>
+          </ul>
+        </section>
+
+        <section aria-labelledby="dataset">
+          <h2 id="dataset">Dataset</h2>
+          <p>We used <a href="https://huggingface.co/datasets/p-doom/doom-dataset">Pdoom’s Doom dataset</a>. The dataset consists of about 10 million frames, roughly 700 shards, with each shard holding 100 videos. We trained our Genie implementation on 42 shards worth of data (4,200 videos). Each image was 80 × 60 pixels. We resized the frames to 90 × 160 and padded the bottom to 96 × 160, matching the model’s input dimensions.</p>
+          <p>The Doom dataset was a supervised dataset with labeled data, but our implementation did not use the action labels for training. However, the frame order helped us align each action with its transition. In the dataset, the consecutive frames barely differ from one another. Therefore, when creating the LAM, we sourced every fourth frame to visualize greater differences.</p>
+          <figure class="chart-figure">
+            <div class="figure-heading">Frames used <span>Training corpus / reported subset</span></div>
+            <svg class="frame-chart" viewBox="0 0 720 290" role="img" aria-labelledby="frames-title frames-desc">
+              <title id="frames-title">Frame counts by model</title>
+              <desc id="frames-desc">Tokenizer: 600,000 frames, verified training corpus. LAM and dynamics: 144,000 frames each, author-reported subsets. A dashed outline distinguishes the reported counts.</desc>
+              <g class="chart-grid"><path d="M85 43H680M85 103H680M85 163H680M85 223H680"/></g>
+              <g class="chart-labels"><text x="68" y="48" text-anchor="end">600k</text><text x="68" y="108" text-anchor="end">400k</text><text x="68" y="168" text-anchor="end">200k</text><text x="68" y="228" text-anchor="end">0</text></g>
+              <rect class="verified-bar" x="151" y="43" width="106" height="180"/>
+              <rect class="reported-bar" x="337" y="179.8" width="106" height="43.2"/>
+              <rect class="reported-bar" x="523" y="179.8" width="106" height="43.2"/>
+              <g class="chart-values"><text x="204" y="31" text-anchor="middle">600,000</text><text x="390" y="168" text-anchor="middle">144,000*</text><text x="576" y="168" text-anchor="middle">144,000*</text></g>
+              <g class="chart-labels"><text x="204" y="252" text-anchor="middle">Tokenizer</text><text x="390" y="252" text-anchor="middle">LAM</text><text x="576" y="252" text-anchor="middle">Dynamics</text></g>
+            </svg>
+            <figcaption><span class="caption-label">Figure 2.</span> The tokenizer corpus contains 600,000 frames. *The 144,000-frame counts are reported in the draft; stride-four sampling is implemented, but an exact subset manifest is not saved locally. Counts are not cumulative training exposures over multiple epochs.<sup><a href="#ref-data" aria-label="Reference 3">[3]</a></sup></figcaption>
+          </figure>
+        </section>
+
+        <section aria-labelledby="connection">
+          <h2 id="connection">How the pieces connect</h2>
+          <p>Here’s how the three pieces connect. During training, the tokenizer and LAM look at the <em>same clip</em>: the tokenizer gives us 960 visual token IDs per frame, while the LAM gives us one 32-number action vector between frames. The dynamics model learns to fill in hidden visual tokens, using the earlier frames and the action leading into each frame.</p>
+          <figure class="connection-figure">
+            <div class="pipeline" role="img" aria-label="The same video clip feeds two frozen models in parallel: the video tokenizer produces visual token IDs, and the latent action model produces transition vectors. Both feed the dynamics model, which predicts visual token IDs. The tokenizer codebook and decoder convert predicted IDs to RGB frames.">
+              <div class="pipeline-input">Same video clip <code>[B, T, 96, 160, 3]</code></div>
+              <div class="pipeline-fork">
+                <div class="pipeline-branch"><span class="flow-arrow" aria-hidden="true">↓</span><strong>Video tokenizer</strong><span>What the frames look like</span><code>[B, T, 960] IDs</code></div>
+                <div class="pipeline-branch"><span class="flow-arrow" aria-hidden="true">↓</span><strong>Latent action model</strong><span>What changed between them</span><code>[B, T − 1, 32] vectors</code></div>
+              </div>
+              <div class="pipeline-join" aria-hidden="true"><span>↘</span><span>↙</span></div>
+              <div class="pipeline-dynamics"><strong>Dynamics model</strong><span>Visual tokens + incoming action</span><span>Predict the hidden visual token IDs</span></div>
+              <span class="flow-arrow" aria-hidden="true">↓</span>
+              <div class="pipeline-output"><strong>Tokenizer codebook + decoder</strong><span>Predicted IDs back to RGB pixels</span></div>
+            </div>
+            <figcaption><span class="caption-label">Figure 3.</span> Two encoders, two different codebooks. The LAM does not consume the tokenizer’s output. Both branches read pixels; their outputs meet at dynamics. Tokenizer and LAM are frozen during our dynamics training.<sup><a href="#ref-pipeline" aria-label="Reference 4">[4]</a></sup></figcaption>
+          </figure>
+          <p>At play time, our key press picks an action code instead. MaskGIT fills in the next frame’s token IDs, and the tokenizer’s decoder turns those IDs back into pixels. Those new tokens then become the context for the next step; we do not need to re-encode the generated image.</p>
+          <p class="technical-note">Two vocabularies, not one: the tokenizer has <strong>1,024 visual codes</strong>; the LAM has <strong>8 action codes</strong>. Both store 32-dimensional vectors, but those vectors serve different purposes.</p>
+        </section>
+
+        <section aria-labelledby="vq-vae">
+          <h2 id="vq-vae">VQ-VAE</h2>
+          <p>The vector-quantized variational autoencoder (VQ-VAE) follows the traditional encoder/decoder paradigm with one crucial twist: quantization.</p>
+          <p>Quantization allows for the creation of a codebook, effectively storing learned representative feature vectors extracted from training video.</p>
+          <p class="figure-reference"><a href="assets/vae-full.webp" target="_blank" rel="noopener">Open the complete VQ-VAE drawing <span aria-hidden="true">↗</span></a></p>
+
+          <h3>Input preparation</h3>
+          <p><var>B</var> batches of <var>T</var> video/gameplay frames, where each frame is 96 by 160 pixels in RGB channels, serve as input. The tensor at this point is <code>[B, T, 96, 160, 3]</code>.</p>
+          <figure class="drawing compact-drawing">
+            <a href="assets/vae-input.webp" target="_blank" rel="noopener" aria-label="Open input preparation drawing at full resolution"><img src="assets/vae-input.webp" width="2011" height="1195" loading="lazy" decoding="async" alt="Hand-drawn stack of RGB frames with batch-first shape B, T, 96, 160, 3."></a>
+            <figcaption><span class="caption-label">Figure 4.</span> The video input. Throughout the article, shapes are batch-first: <var>B</var>, then <var>T</var>.</figcaption>
+          </figure>
+
+          <h3 id="patchification">Patchification</h3>
+          <p>Patchification prepares and enriches the video data for the dense upcoming transformer layers. Each frame is first broken into chunks of 4 × 4. A 96 × 160 image thus becomes a 24 × 40 grid of patches, across 3 channels. Those patches are flattened without much care. Thus, by combining patch dimensions with channels, we are left with 960 “patches” (flattened), of 48 values. Until now, no image values have been modified.</p>
+          <p>A linear layer projects the 48 pixel values of each of the 960 patches into 512 dimensions. Every patch now holds a 512-dimensional vector describing its features.</p>
+          <p>Self-attention without positional information is permutation-equivariant: reordering the tokens reorders the outputs. Thus, every token vector must encode its spatial position. In the case of a spatiotemporal transformer, it must also encode its temporal position.</p>
+          <p>As there are <var>T</var> frames across the time axis, for the same location on every frame (matching patches), they get the same 512-dimensional spatial encoding vector added to their feature vectors.</p>
+          <p>For all patches belonging on the same frame, they get the same 512-dimensional temporal encoding vector added to their feature vectors.</p>
+          <p>Those positional encodings are fully trainable.</p>
+          <p><strong>The hope is that a fully trained VQ-VAE</strong> will produce rich spatial and temporal encodings for any input video token.</p>
+          <figure class="drawing wide-drawing">
+            <a href="assets/vae-patches.webp" target="_blank" rel="noopener" aria-label="Open patchification drawing at full resolution"><img src="assets/vae-patches.webp" width="5957" height="1195" loading="lazy" decoding="async" alt="Frames become 960 patches of 48 pixel values, project to 512 features, then receive spatial and temporal position embeddings."></a>
+            <figcaption><span class="caption-label">Figure 5.</span> From pixels to positioned tokens. Click any drawing to inspect the original at full resolution.</figcaption>
+          </figure>
+
+          <h3>Chained transformer blocks — the encoder</h3>
+          <p>Our enriched input is further enriched through 12 spatiotemporal transformer blocks to share information among themselves (the encoder).</p>
+          <p>A transformer outputs a tensor the same shape as its input. Thus the ease of being chained together.</p>
+          <p>The tensor output from 12 spatiotemporal transformer blocks contains rich, global information within each frame and its causal history.</p>
+          <figure class="drawing">
+            <a href="assets/vae-encoder.webp" target="_blank" rel="noopener" aria-label="Open encoder drawing at full resolution"><img src="assets/vae-encoder.webp" width="3771" height="1181" loading="lazy" decoding="async" alt="Twelve ST-transformer blocks and LayerNorm preserve the B, T, 960, 512 tensor shape."></a>
+            <figcaption><span class="caption-label">Figure 6.</span> The tokenizer encoder.</figcaption>
+          </figure>
+
+          <h3 id="quantization">Quantization</h3>
+          <p>Quantization serves to create a codebook to represent context. Twelve transformer blocks deep, each position in the <code>[B, T, 960, 512]</code> tensor contains more than its original patch: it has gathered information from other patches and earlier frames.</p>
+          <p><code>[B, T, 960, 512]</code> is then projected down to <code>[B, T, 960, 32]</code>.</p>
+          <p>With an untrained encoder, <code>[B, T, 960, 32]</code> has no useful learned meaning. With a trained encoder and a trained codebook, each 32-number vector gets discretized into a single scalar token ID.</p>
+          <p>If “patch” #456 of the 960 is closest to the 278th entry in the codebook, its token ID is 278. Another example: if “patch” #872 is closest to entry 113, its token ID is 113. The full tensor of IDs has shape <code>[B, T, 960]</code>; looking those IDs up retrieves vectors of shape <code>[B, T, 960, 32]</code>.</p>
+          <p><var>L</var><sub>commitment</sub> and <var>L</var><sub>codebook</sub> serve to bring the values of the codebook and the transformed tensor closer (thus updating the weights of the encoder and the stored codebook vectors only).</p>
+          <figure class="drawing wide-drawing">
+            <a href="assets/vae-quantization.webp" target="_blank" rel="noopener" aria-label="Open quantization drawing at full resolution"><img src="assets/vae-quantization.webp" width="5617" height="1223" loading="lazy" decoding="async" alt="Project features to 32 dimensions, select the nearest entry in a 1024-entry codebook, and compute codebook and commitment losses."></a>
+            <figcaption><span class="caption-label">Figure 7.</span> Quantization selects one codebook entry per token position. The drawing’s optional singleton ID axis is omitted in the implementation.</figcaption>
+          </figure>
+
+          <h3 id="reconstruction">Chained transformer blocks — the decoder</h3>
+          <p>The decoder uses the same type of blocks as the encoder, but operates at a higher token dimension of 1024 instead of 512, with 20 blocks rather than 12. We account for this flexibility in our implementation of the <a href="https://github.com/AcastaPaloma/genie3/blob/main/transformer.py">SpatioTemporalTransformer</a>.</p>
+          <p>After the decoder blocks, normalization and a linear pixel head produce a tensor of size <code>[B, T, 960, 48]</code>, ready to be reshaped into a video with corresponding size as the raw frames at the very beginning of this article.</p>
+          <figure class="drawing wide-drawing">
+            <a href="assets/vae-decoder.webp" target="_blank" rel="noopener" aria-label="Open decoder drawing at full resolution"><img src="assets/vae-decoder.webp" width="8249" height="1196" loading="lazy" decoding="async" alt="Look up quantized vectors, project to 1024 dimensions, apply twenty ST blocks and normalization, then project to 48 pixel values."></a>
+            <figcaption><span class="caption-label">Figure 8.</span> The tokenizer decoder maps selected vectors back to pixel values.</figcaption>
+          </figure>
+          <h3>Reconstruction</h3>
+          <p>Reconstruction turns the flattened <code>[B, T, 960, 48]</code> into recognizable video. Reconstruction loss propagates through the decoder as well as the encoder, using a straight-through gradient across quantization.</p>
+          <figure class="drawing wide-drawing">
+            <a href="assets/vae-reconstruction.webp" target="_blank" rel="noopener" aria-label="Open reconstruction drawing at full resolution"><img src="assets/vae-reconstruction.webp" width="7068" height="1196" loading="lazy" decoding="async" alt="Sigmoid bounds the predicted RGB values; reshaping and unpatchifying restore video frames for mean squared reconstruction loss."></a>
+            <figcaption><span class="caption-label">Figure 9.</span> Turning predicted patches back into frames.</figcaption>
+          </figure>
+          <p><em>Now is the right time to break down the long-awaited spatiotemporal (ST) transformer.</em></p>
+        </section>
+
+        <section aria-labelledby="st-transformer">
+          <h2 id="st-transformer">Spatiotemporal transformer</h2>
+          <p class="figure-reference"><a href="assets/transformer-full.webp" target="_blank" rel="noopener">Open the complete ST-transformer drawing <span aria-hidden="true">↗</span></a></p>
+          <h3>Input preparation</h3>
+          <p>We’ve already presented the input to the transformer in the context of the VQ-VAE: assuming the tensor goes into the first transformer block of the encoder, <code>[B, T, 960, 512]</code> contains unshared information about the 960 patches per frame, with spatial and temporal positioning.</p>
+          <figure class="drawing">
+            <a href="assets/transformer-input.webp" target="_blank" rel="noopener" aria-label="Open transformer input drawing at full resolution"><img src="assets/transformer-input.webp" width="3546" height="1195" loading="lazy" decoding="async" alt="Positioned patch tokens enter LayerNorm before the attention block."></a>
+            <figcaption><span class="caption-label">Figure 10.</span> The ST-transformer’s input.</figcaption>
+          </figure>
+
+          <h3 id="spatial-attention">Spatial attention: setting up Q, K, V vectors</h3>
+          <p>You should be familiar with the transformer architecture.</p>
+          <p>Q, K and V tensors are three learned projections of the main <code>[B, T, 960, 512]</code> tensor. Each projects from dimension 512 to 512 along the last axis.</p>
+          <p>Q and K vectors drive the attention mechanism by pairing relevant “patches”, tokens. V vectors are one abstraction above “raw” pixel values. Sure, we could directly use the raw pixel values, but a learned linear projection lets the model choose which features to share, rather than simply mixing RGB values.</p>
+          <p>Q, K, V each contain 960 vectors of dimension 512 per frame. Every “patch” identifies now as a token. Then, Q, K, V each get reshaped into 8 attention “heads”, with isolated mechanisms for the next few steps. This is achieved through a naive “cut” of the <strong>feature dimension</strong>: channels 0 to 63 go to head 1, channels 64 to 127 go to head 2, etc. Every head still sees all 960 tokens.</p>
+          <p>This prepares for spatial attention, and allows for “patches”, tokens, to “see” each other, <strong>within a frame.</strong> They cannot see patches belonging to other frames than their own.</p>
+          <figure class="drawing">
+            <a href="assets/spatial-qkv.webp" target="_blank" rel="noopener" aria-label="Open spatial Q K V drawing at full resolution"><img src="assets/spatial-qkv.webp" width="2931" height="1195" loading="lazy" decoding="async" alt="Spatial Q, K and V are reshaped into eight heads, each retaining 960 tokens with 64 channels per token."></a>
+            <figcaption><span class="caption-label">Figure 11.</span> Eight heads split the 512 channels, not the 960 patch positions.</figcaption>
+          </figure>
+
+          <h3>Spatial attention-logit matrix</h3>
+          <p>The attention matrix values entirely depend on how good the weight matrices generating Q and K are.</p>
+          <p>It is easier to understand its mechanism by analyzing a fully trained model:</p>
+          <ul>
+            <li>A fully trained model can strongly correlate tokens with high affinity. What does high affinity mean? We can only guess. For a video VAE, we can assume learned spatial relationships, but an attention map alone does not establish semantics or causality.</li>
+            <li>Scaled Q–K dot products are normalized with softmax. Multiplying these attention weights by V produces a weighted mixture of value vectors, which is projected back into the residual stream.</li>
+          </ul>
+          <p>The above explanation assumes only one attention head. Eight attention heads are used in the tokenizer encoder: the hope is that the different initializations and learned weights for W<sub>q</sub>, W<sub>k</sub>, W<sub>v</sub> would push each attention mechanism to focus, to attend, to pair tokens based on <em>different criteria</em>. A naive, fantasy idea would be: attention head 1 looks for relative object position, attention head 2 looks for causality, attention head 3 looks for lighting, etc. (HIGHLY INACCURATE).</p>
+          <p>A linear output projection combines the output of all 8 attention heads and prepares that tensor to the right size to pass through the next part of the transformer block.</p>
+          <figure class="drawing">
+            <a href="assets/spatial-attention.webp" target="_blank" rel="noopener" aria-label="Open spatial attention drawing at full resolution"><img src="assets/spatial-attention.webp" width="2931" height="1195" loading="lazy" decoding="async" alt="Each spatial head forms a 960 by 960 attention matrix, applies softmax, mixes value vectors, then joins the other heads."></a>
+            <figcaption><span class="caption-label">Figure 12.</span> Which other patches in the same frame matter?</figcaption>
+          </figure>
+          <h3>Residual spatial attention connection</h3>
+          <p>A residual connection adds the attention update back to the input: <code>x ← x + attention(LayerNorm(x))</code>. It preserves a direct path for the existing representation and its gradients; it does not guarantee that updates are small.</p>
+
+          <h3 id="temporal-attention">Temporal attention: setting up Q, K, V vectors</h3>
+          <p>The initial tensor is split up such that each patch only “sees” “itself” across frames. It sees none of the other patches different in location.</p>
+          <p>The rest of the attention mechanism remains identical to spatial attention, with a causal mask preventing a frame from attending to its future.</p>
+          <figure class="drawing">
+            <a href="assets/temporal-qkv.webp" target="_blank" rel="noopener" aria-label="Open temporal Q K V drawing at full resolution"><img src="assets/temporal-qkv.webp" width="2931" height="1195" loading="lazy" decoding="async" alt="The frame and patch axes are rearranged so temporal attention follows a fixed patch position through time."></a>
+            <figcaption><span class="caption-label">Figure 13.</span> Same patch position, different frames.</figcaption>
+          </figure>
+          <h3>Temporal attention-logit matrix</h3>
+          <p>Same idea, different axis, lol. For each patch position and each head, Q and K now produce a <code>[T, T]</code> attention matrix rather than <code>[960, 960]</code>. The causal mask hides future frames before softmax. Multiplying those weights by V lets a patch gather information from the same location in the current and earlier frames.</p>
+          <figure class="drawing">
+            <a href="assets/temporal-attention.webp" target="_blank" rel="noopener" aria-label="Open temporal attention drawing at full resolution"><img src="assets/temporal-attention.webp" width="2931" height="1195" loading="lazy" decoding="async" alt="A causal T by T attention matrix connects each patch position to its present and past, but not its future."></a>
+            <figcaption><span class="caption-label">Figure 14.</span> Which earlier frames of the same patch matter?</figcaption>
+          </figure>
+          <h3>Residual temporal attention connection</h3>
+          <p>As with spatial attention, the temporal attention update is added back to the input.</p>
+
+          <h3 id="feed-forward">Feed-forward neural network</h3>
+          <p>The feed-forward neural network consolidates acquired features through the spatial and temporal attention blocks.</p>
+          <p>For each token independently, it expands 512 features to 2048, applies GELU, and projects back to 512. One last residual addition completes the block. The shape stays <code>[B, T, 960, 512]</code>, ready for the next block.</p>
+          <figure class="drawing">
+            <a href="assets/ffn.webp" target="_blank" rel="noopener" aria-label="Open feed-forward drawing at full resolution"><img src="assets/ffn.webp" width="5924" height="1195" loading="lazy" decoding="async" alt="LayerNorm, a 512-to-2048 linear layer, GELU, and a 2048-to-512 linear layer form the feed-forward network."></a>
+            <figcaption><span class="caption-label">Figure 15.</span> Mixing features within each token.</figcaption>
+          </figure>
+          <details class="figure-details">
+            <summary>The three residual connections</summary>
+            <div class="residual-drawings">
+              <a href="assets/spatial-residual.webp" target="_blank" rel="noopener"><img src="assets/spatial-residual.webp" width="1197" height="1195" loading="lazy" alt="Spatial residual: add input and spatial attention update."></a>
+              <a href="assets/temporal-residual.webp" target="_blank" rel="noopener"><img src="assets/temporal-residual.webp" width="1197" height="1195" loading="lazy" alt="Temporal residual: add input and temporal attention update."></a>
+              <a href="assets/ffn-residual.webp" target="_blank" rel="noopener"><img src="assets/ffn-residual.webp" width="1197" height="1195" loading="lazy" alt="Feed-forward residual: add input and feed-forward update."></a>
+            </div>
+          </details>
+        </section>
+
+        <section aria-labelledby="lam">
+          <h2 id="lam">Latent action model</h2>
+          <p>The latent action model is made up of three main parts for training:</p>
+          <ul><li>Encoder</li><li>Codebook</li><li>Decoder</li></ul>
+          <p>The goal of the latent action model is to take in a sequence of frames, and output an action which caused the frames to change. E.g. given a batch of consecutive frames up to <var>f</var>, how do we know what the future frame <var>f</var> + 1 will be given action <var>a</var>?</p>
+          <p>The <strong>encoder takes a sequence of frames and outputs 32 numbers describing each transition</strong>. These are continuous features, not 32 IDs. The output is then given to the <strong>codebook, which turns the 32 numbers into one of 8 learned vectors (these are the mapped actions)</strong> and replaces the encoder’s output with whichever of the 8 is closest. The closest output is measured via squared Euclidean distance.</p>
+          <div class="equation" role="math" aria-label="d of z and e sub k equals the squared Euclidean norm of z minus e sub k, equal to the sum from i equals one to thirty-two of z sub i minus e sub k i, squared">
+            <span><var>d</var>(<var>z</var>, <var>e</var><sub>k</sub>) = ‖<var>z</var> − <var>e</var><sub>k</sub>‖² =</span>
+            <span class="sum"><span>32</span><span>∑</span><span>i = 1</span></span>
+            <span>(<var>z</var><sub>i</sub> − <var>e</var><sub>k,i</sub>)²</span>
+          </div>
+          <p>This forces every vector into one of only 8 mapped actions (the codebook’s limit). Additionally it gives each action an ID which can later be used to map to one of the 8 specific actions. The <strong>decoder takes that codebook vector together with the previous frames, and predicts the next frame</strong>. During interactive generation, the LAM decoder is unused, and the keys the user clicks pick one of the 8 codebook vectors directly. Our server still uses the LAM encoder once to infer actions inside the initial prompt clip.</p>
+
+          <h3>LAM encoder</h3>
+          <p>During training, the encoder takes in a batch of images with height, width, channel dimensions of <code>[96, 160, 3]</code>. The encoder’s input is <code>[B, T, H, W, C]</code>: batches, frames, height, width, and RGB channels.</p>
+          <p>Batches help with the throughput of how much the model learns per iteration. It is constrained by the amount of compute you have. The number of frames determines the model’s context window. The number of channels, along with width and height are just the size of the frame as well as the red, green and blue channels of the image.</p>
+          <p>We input four batches (more batches = more clips trained) of 16-frame clips. Next we patch the images, turning a <code>[4, 16, 96, 160, 3]</code> tensor into <code>[4, 16, 60, 768]</code>. Patching shortens the sequence so attention is affordable.</p>
+          <p>Next, we apply one linear layer and 8 ST-transformer blocks to the patched frames in the smaller configuration described here. The goal of the ST-transformer is to create a latent space which can translate the image clips into actions.</p>
+          <p>Through the 8 blocks, the temporal transformer allows each frame to see itself and the frames before it. With each timestep, the transformer learns to map 16 frames into actions between each frame. However, there are only 15 transitions between the frames, so we drop the first <em>encoded position</em>, not the first input frame. Before this step, we average over the 60 patches, turning <code>[4, 16, 60, 512]</code> into <code>[4, 16, 512]</code>, and go through another linear layer.</p>
+          <p><code>[4, 15, 32]</code> is the shape of the output of the LAM encoder! Using this output, we apply the codebook to find which specific action it maps to by computing distances and taking an argmin.</p>
+          <p>NOTE: If the codebook is confusing, just think of it as a dictionary which maps each 32-number vector in <code>[4, 15, 32]</code> to one of 8 IDs. The IDs have shape <code>[4, 15]</code>.</p>
+          <p>After getting the specific index, we apply the index to get ONE specific mapping of an action. This way, each action is bound to 8 specific possibilities within the codebook, instead of any possible action.</p>
+          <p class="technical-note">This is the base, mean-pooled LAM architecture described in the draft. The repo also contains experimental encoders that preserve spatial differences; the checkpoint configuration selects the actual variant.</p>
+          <details class="figure-details">
+            <summary>Original LAM encoder drawing</summary>
+            <figure class="drawing portrait-drawing">
+              <a href="assets/lam-encoder-original.webp" target="_blank" rel="noopener"><img src="assets/lam-encoder-original.webp" width="1110" height="1456" loading="lazy" alt="Original hand-drawn LAM encoder: patch frames, project features, run eight ST blocks, average patches, project to 32 features and quantize to eight actions."></a>
+              <figcaption>The original drawing uses time-first labels <code>[T, B, …]</code>. The implementation and corrected text use <code>[B, T, …]</code>. “Drop initial frame” means discard the first encoded position, not its input pixels.</figcaption>
+            </figure>
+          </details>
+
+          <h3>LAM decoder</h3>
+          <p>The LAM decoder takes in the action, and a continuous set of frames, and reconstructs the potential future frame <var>f</var> + 1. The decoder applies the same patching and linear-layer techniques as the encoder. We project the action vector from 32 to 512 dimensions, add a singleton patch axis, and <strong>add</strong> it to every patch of the corresponding conditioning frame.</p>
+          <p>After we deploy the series of 8 ST-transformer blocks and another linear layer to reformat the data to match what needs to be unpatchified, we also need to make sure the numbers are between zero and one, since the inputted images are divided by 255 (also between zero and one); therefore we apply a sigmoid function before we unpatch the frames. By unpatching the frames, we get an output prediction of how the predicted future image looks. Looking at the dimensions, we’ve successfully mapped an action output to an input frame.</p>
+          <details class="figure-details">
+            <summary>Original LAM decoder drawing</summary>
+            <figure class="drawing portrait-drawing">
+              <a href="assets/lam-decoder.webp" target="_blank" rel="noopener"><img src="assets/lam-decoder.webp" width="1200" height="1408" loading="lazy" alt="The original LAM decoder drawing, recovered from the PDF, showing frame patchification and action conditioning followed by ST blocks and pixel reconstruction."></a>
+              <figcaption>Recovered from the two decoder panels in the draft. As above, read shapes batch-first; the implementation adds the projected action to the patch embeddings.</figcaption>
+            </figure>
+          </details>
+
+          <h3>LAM training</h3>
+          <p>To train the LAM via unsupervised learning, we first input the frames, batches, and images into the encoder. Afterwards, we take the encoder output and input it into the codebook to get the specific action vector it should do. Lastly, we take the action vector plus the previous frames and input them into the decoder to predict the future frames.</p>
+          <p>We improve the model with a quantization loss between the encoder features and the selected codebook vectors, plus a reconstruction loss between the predicted frames and the actual next frames. These use mean squared error; the quantization objective includes separate codebook and commitment terms. Reconstruction compares all 15 predicted frames against the shifted targets, not just the last frame.</p>
+          <details class="figure-details">
+            <summary>Original LAM training graph</summary>
+            <figure class="drawing portrait-drawing">
+              <a href="assets/lam-training.webp" target="_blank" rel="noopener"><img src="assets/lam-training.webp" width="1018" height="1234" loading="lazy" alt="LAM encoder and codebook feed the decoder; predicted frames are compared with real next frames, alongside a quantization loss."></a>
+              <figcaption>The training loop, with the original drawing’s simplified loss notation.</figcaption>
+            </figure>
+          </details>
+        </section>
+
+        <section aria-labelledby="dynamics">
+          <h2 id="dynamics">Dynamics model</h2>
+          <p>The dynamics model is the final model in the Genie paper. It turns the output from the video autoencoder and latent action model into a new, future frame’s tokens. We first input the autoencoder’s token IDs, each giving 1,024 options. Because we don’t want the model to see the answers at the positions it must predict, we mask those IDs and embed them into 512-length vectors.</p>
+          <p>We also input the latent action model output, which is first put through its codebook to get the specific action vector. We apply a linear layer, pad the frame axis, and unsqueeze to match the dimensions of the visual token embeddings. The pad inserts a zero action contribution for frame 0, which has nothing leading into it (15 → 16), and the unsqueeze adds the patch axis so one action gets added to all 960 patches of its destination frame.</p>
+          <p>Next, we combine the autoencoder vector and the projected action vector, along with spatial and temporal positional data. After, we put the tensor through 8 ST-transformer blocks, layer normalization, and a linear layer. Now, we have successfully created logits over the 1,024 codebook IDs at each of the 960 patch positions.</p>
+          <p>Instead of argmaxxing one specific ID, we sample candidates and refine them across three dynamics-model passes. Each pass keeps the most confident predictions and re-masks the least confident remaining positions. The schedule is cosine, not three equal thirds: with 960 patches, roughly 129 are fixed after pass 1, 480 in total after pass 2, and all 960 after pass 3. The resulting IDs are looked up in the <em>tokenizer’s</em> codebook, then passed to its decoder to compute an actual future frame.</p>
+          <figure class="drawing portrait-drawing">
+            <a href="assets/dynamics-original.webp" target="_blank" rel="noopener" aria-label="Open dynamics drawing at full resolution"><img src="assets/dynamics-original.webp" width="1374" height="1510" loading="lazy" decoding="async" alt="Visual IDs are masked and embedded; action vectors are projected, padded and broadcast. Their sum passes through eight ST blocks and a 1024-way output head before token sampling."></a>
+            <figcaption><span class="caption-label">Figure 16.</span> The dynamics model. “Randomly pick” in the original drawing means sampling from model probabilities, followed by the confidence-based MaskGIT refinement described above.</figcaption>
+          </figure>
+
+          <h3>Training the dynamics model</h3>
+          <p>We take a real 16-frame clip, tokenize it with the frozen autoencoder, and get its action codes from the frozen LAM. Then we sample a token-hiding probability between 50% and 100% for each clip, and hide tokens at random. Frame 0 is never hidden, since nothing leads into it and at play time it’s always part of the prompt you start from.</p>
+          <p>Hidden tokens get their ID swapped for 1024, the MASK entry, so the model genuinely cannot see them. It then scores all 1,024 options at every one of the 960 positions, and we compute cross-entropy against the tokenizer’s real IDs, but only at the hidden positions. Scoring the visible ones would just teach it to copy its own input. Through the masking, the model is forced to learn to fill in gaps from the surrounding patches.</p>
+          <p class="technical-note">The extra MASK entry is an input symbol, not a possible output image code. Dynamics predicts IDs 0–1023; only its own weights are updated in this training stage.<sup><a href="#ref-pipeline" aria-label="Reference 4">[4]</a></sup></p>
+        </section>
+
+        <section aria-labelledby="results">
+          <h2 id="results">Results</h2>
+          <p>The archived tokenizer evaluation reached <strong>37.43 dB PSNR on 256 held-out test clips</strong>, using 197 of its 1,024 codes. The final exported checkpoint later recorded <strong>40.33 dB on four fixed validation clips</strong>, using 201 codes. These are different checkpoints and evaluation sets, so they are kept separate here rather than summarized as the draft’s roughly 42 dB.<sup><a href="#ref-results" aria-label="Reference 5">[5]</a></sup></p>
+          <figure class="results-figure">
+            <div class="table-scroll" tabindex="0" role="region" aria-label="Recorded tokenizer results">
+              <table>
+                <thead><tr><th scope="col">Checkpoint</th><th scope="col">Evaluation</th><th scope="col">PSNR</th><th scope="col">Codes used</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">Step 5,500</th><td>256 test clips</td><td>32.43 dB</td><td>177 / 1,024</td></tr>
+                  <tr><th scope="row">Step 36,000</th><td>Same test clips</td><td>37.43 dB</td><td>197 / 1,024</td></tr>
+                  <tr><th scope="row">Step 38,500</th><td>Same test clips</td><td>37.04 dB</td><td>198 / 1,024</td></tr>
+                  <tr class="separate-evaluation"><th scope="row">Step 94,500</th><td>4 fixed validation clips</td><td>40.33 dB</td><td>201 / 1,024</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <figcaption><span class="caption-label">Table 1.</span> Recorded reconstruction results. The first three rows use the same test sample and content-only metric; the final row is routine fixed validation, not a like-for-like test comparison. <a href="assets/tokenizer-evidence.json">Evaluation data</a>.</figcaption>
+          </figure>
+          <figure class="results-figure">
+            <video controls playsinline preload="none" poster="assets/tokenizer-poster.webp" width="960" height="224" aria-label="Historical tokenizer reconstruction comparison: original, step 5500, step 38500">
+              <source src="assets/tokenizer-comparison.mp4" type="video/mp4">
+              <p>Your browser cannot play this video. <a href="assets/tokenizer-comparison.mp4">Download the comparison</a> or <a href="assets/tokenizer-comparison.webp">view the still image</a>.</p>
+            </video>
+            <figcaption><span class="caption-label">Figure 17.</span> Historical tokenizer reconstructions, not generated gameplay. Left to right: original frames, step 5,500, step 38,500. Four predetermined test clips, displayed at 10 FPS; this playback rate is not an inference benchmark. The final step-94,500 checkpoint is not shown.</figcaption>
+          </figure>
+
+          <h3>Latent actions</h3>
+          <p class="technical-note">The following LAM measurements and demo observations are reported in the original write-up. Their evaluation files are not in the local result archive.</p>
+          <p>The latent action model trained with no action labels at all, reached a reported ΔPSNR of 2.49, meaning its next-frame prediction is about 2.5 dB worse with a random code than with the one it inferred. Genie reports 1.91 for the 2.5B pixel-input model in its platformer ablation. That is a reference point, not a controlled comparison: the datasets differ, and Genie reports its metric at <var>t</var> = 4 while our scoring code also averages across transitions.</p>
+          <p>The codes also line up with real Doom inputs grouped into three visual motion classes—left, no turn, and right—63.9% of the time against a 49.1% majority-class baseline. The reported effective code usage is 7.8 of 8: this is perplexity, not a fractional count of active codes.</p>
+          <p>One flaw is that no IDs learned to fire a weapon, and nothing learned to stand still in our observations. Training to fire the gun is hard to emulate as it changes comparatively few pixels; this may help explain why the 8-slot budget did not allocate a distinct firing action.</p>
+        </section>
+
+        <section aria-labelledby="conclusion">
+          <h2 id="conclusion">Conclusion</h2>
+          <p>Overall, Kuan and I trained an implementation of Genie with a dynamics model roughly one three-hundredth of the original dynamics model’s size—about one twenty-second for the full system, using the reported counts—where you can steer the result with WASD at about 5 frames a second in our demo.</p>
+          <p>The latent action model was surprisingly accurate. Given only raw frames, it sorted camera motion into eight buckets and reached a reported ΔPSNR above Genie’s platformer result, though not under a matched evaluation. In our observations, that gap grew over longer rollouts, and the action effect was still climbing when we ran out of time.</p>
+          <p>One cool attribute was memory within the world model. If one did a 360 in the model and saw a wall, you’d still see it if you did another 360. That was a qualitative demo observation, not a controlled test of persistent 3D geometry; the implementation keeps a finite context window. The roughly 5 FPS figure is likewise a demo observation, not an archived benchmark.</p>
+        </section>
+
+        <section class="references" aria-labelledby="references">
+          <h2 id="references">References</h2>
+          <ol>
+            <li id="ref-genie">Bruce et al. <a href="https://arxiv.org/html/2402.15391v1"><cite>Genie: Generative Interactive Environments</cite></a>, 2024. Architecture, training protocol, and comparison figures.</li>
+            <li id="ref-config"><a href="https://github.com/AcastaPaloma/genie3/blob/main/HYPERPARAMETERS.md">Repository hyperparameters</a> and <a href="https://github.com/AcastaPaloma/genie3/blob/main/DYNAMICS_TRAINING_SPEC.md">smaller dynamics training specification</a>. Constructor defaults and experimental configurations are distinct.</li>
+            <li id="ref-data"><a href="https://huggingface.co/datasets/p-doom/doom-dataset">p-doom/doom-dataset</a>. Local training manifest: 42 shards, 4,200 videos, 600,000 frames. <a href="assets/tokenizer-evidence.json">Recorded publication data</a>.</li>
+            <li id="ref-pipeline">Implementation: <a href="https://github.com/AcastaPaloma/genie3/blob/main/vae.py">VQ-VAE</a>, <a href="https://github.com/AcastaPaloma/genie3/blob/main/lam.py">LAM</a>, <a href="https://github.com/AcastaPaloma/genie3/blob/main/transformer.py">ST-transformer</a>, <a href="https://github.com/AcastaPaloma/genie3/blob/main/dynamics_model.py">dynamics training and sampling</a>, and <a href="https://github.com/AcastaPaloma/genie3/blob/main/experiments/play_server.py">interactive inference</a>.</li>
+            <li id="ref-results">Tokenizer evaluation, 14 September 2026; final export metadata, 15 September 2026. <a href="assets/tokenizer-evidence.json">Local metric excerpts and source paths</a>. LAM metric definitions: <a href="https://github.com/AcastaPaloma/genie3/blob/main/experiments/train_scored.py">training scorer</a>.</li>
+          </ol>
+        </section>
+        <footer class="article-footer"><a href="https://github.com/AcastaPaloma/genie3">genie3 on GitHub</a><a href="#top">Back to top ↑</a></footer>
+      </article>
+    </main>
+  </div>
+</body>
+</html>
