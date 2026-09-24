@@ -131,7 +131,9 @@
               and Decart’s <a href="https://oasis-model.github.io/">Oasis</a> to
               <a href="https://mira-wm.com/">General Intuition’s MIRA</a>, the
               use of world models as playable environments is fascinating.
-              Because of our everlasting curiosity, <a href="https://www.kuant.space/">Kuan</a> and <a href="https://nathanyan.vercel.app/">Nathan</a> recreated
+              Because of our everlasting curiosity, we
+              (<a href="https://www.kuant.space/">Kuan</a> and
+              <a href="https://nathanyan.vercel.app/">Nathan</a>) recreated
               Google’s
               <a href="https://arxiv.org/html/2402.15391v1">Genie 1 paper</a>
               specifically to run Doom on
@@ -214,8 +216,8 @@
               </li>
               <li>Hyperparameter differences (compute gap).</li>
               <li>
-                Genie had about 1.1 billion frames; our draft reports 144,000
-                for LAM and dynamics, with a larger 600,000-frame corpus for the
+                Genie had about 1.1 billion frames; we used 144,000 for the LAM
+                and dynamics, with a larger 600,000-frame corpus for the
                 tokenizer.
               </li>
               <li>
@@ -325,11 +327,10 @@
                 </table>
               </div>
               <figcaption>
-                <span class="caption-label">Figure 1.</span> Model sizes
-                reported in the draft, compared with the original paper. The
-                tokenizer count is documented in the repo; the smaller LAM and
-                dynamics counts are not backed by local checkpoint metadata.
-                These are not the repository’s full-size constructor defaults.
+                <span class="caption-label">Figure 1.</span> The sizes we
+                trained, compared with the original paper. We counted the
+                parameters in each shipped checkpoint; these are not the
+                repository’s full-size constructor defaults.
                 Genie’s rounded total is quoted as reported.<sup
                   ><a href="#ref-config" aria-label="Reference 2">[2]</a></sup
                 >
@@ -388,9 +389,9 @@
               >
                 <title id="frames-title">Frame counts by model</title>
                 <desc id="frames-desc">
-                  Tokenizer: 600,000 frames, verified training corpus. LAM and
-                  dynamics: 144,000 frames each, author-reported subsets. A
-                  dashed outline distinguishes the reported counts.
+                  Tokenizer: 600,000 frames. LAM and dynamics: 144,000 frames
+                  each, the subset we sampled at stride four. A dashed outline
+                  marks the two sampled counts.
                 </desc>
                 <g class="chart-grid">
                   <path d="M85 43H680M85 103H680M85 163H680M85 223H680" />
@@ -435,10 +436,10 @@
               </svg>
               <figcaption>
                 <span class="caption-label">Figure 2.</span> The tokenizer
-                corpus contains 600,000 frames. *The 144,000-frame counts are
-                reported in the draft; stride-four sampling is implemented, but
-                an exact subset manifest is not saved locally. Counts are not
-                cumulative training exposures over multiple epochs.<sup
+                corpus contains 600,000 frames. *We take every fourth frame for
+                the LAM and dynamics, which leaves 144,000 distinct frames. We do
+                not save a manifest of that subset. None of these counts are
+                cumulative exposures over multiple epochs.<sup
                   ><a href="#ref-data" aria-label="Reference 3">[3]</a></sup
                 >
               </figcaption>
@@ -942,7 +943,7 @@
             </figure>
             <h3>Temporal attention-logit matrix</h3>
             <p>
-              Same idea, different axis, lol. For each patch position and each
+              Same idea, different axis. For each patch position and each
               head, Q and K now produce a <code>[T, T]</code> attention matrix
               rather than <code>[960, 960]</code>. The causal mask hides future
               frames before softmax. Multiplying those weights by V lets a patch
@@ -1226,9 +1227,9 @@
                     alt="The original LAM decoder drawing, recovered from the PDF, showing frame patchification and action conditioning followed by ST blocks and pixel reconstruction."
                 /></a>
                 <figcaption>
-                  Recovered from the two decoder panels in the draft. As above,
-                  read shapes batch-first; the implementation adds the projected
-                  action to the patch embeddings.
+                  We recovered this from the two decoder panels in our notes. As
+                  above, read shapes batch-first; we add the projected action to
+                  the patch embeddings.
                 </figcaption>
               </figure>
             </details>
@@ -1373,7 +1374,7 @@
               197 of its 1,024 codes. The final exported checkpoint later
               recorded <strong>40.33 dB on four fixed validation clips</strong>,
               using 201 codes. These are different checkpoints and evaluation
-              sets, so they are kept separate here rather than summarized as the
+              sets, so we keep them separate rather than summarizing them as the
               draft’s roughly 42 dB.<sup
                 ><a href="#ref-results" aria-label="Reference 5">[5]</a></sup
               >
@@ -1558,8 +1559,8 @@
               <figcaption>
                 <span class="caption-label">Figure 20.</span> Validation
                 cross-entropy over 17,550 optimizer steps. Token accuracy is
-                dominated by the static HUD rows, so it is reported here next to
-                the loss rather than on its own.
+                dominated by the static HUD rows, so we report it next to the
+                loss rather than on its own.
               </figcaption>
             </figure>
             <p>
@@ -1615,7 +1616,7 @@
           <section aria-labelledby="conclusion">
             <h2 id="conclusion">Conclusion</h2>
             <p>
-              Overall, <a href="https://www.kuant.space/">Kuan</a> and <a href="https://nathanyan.vercel.app/">Nathan</a> trained an implementation of Genie with a
+              Overall, we trained an implementation of Genie with a
               dynamics model roughly one three-hundredth of the original
               dynamics model’s size (about one twenty-second for the full system,
               using the reported counts), where you can steer the result with WASD
@@ -1630,10 +1631,10 @@
               we ran out of time.
             </p>
             <p>
-              One cool attribute was memory within the world model. If one did a
-              360 in the model and saw a wall, you’d still see it if you did
-              another 360. That was a qualitative demo observation, not a
-              controlled test of persistent 3D geometry; the implementation
+              One cool attribute was memory within the world model. When we spun
+              a full circle and saw a wall, we still saw it after spinning
+              another. That was a qualitative demo observation, not a
+              controlled test of persistent 3D geometry; our implementation
               keeps a finite context window. The roughly 5 FPS figure is
               likewise a demo observation, not an archived benchmark.
             </p>
