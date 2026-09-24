@@ -854,11 +854,11 @@
             </p>
 
             <h3 id="dynamics-inputs">Training inputs and masking</h3>
-            <p>Follow a 16-frame clip through the smaller dynamics model:</p>
+            <p>Follow a 16-frame clip through our dynamics model:</p>
             <div class="tensor-key" aria-hidden="true"><span>Tensor shape</span><span>Transformation</span></div>
             <ol class="tensor-steps" aria-label="Dynamics model tensor transformations">
-              <li><code>[B, 16, 960]</code><span>Input the tokenizer’s visual token IDs, each with 1,024 possible values.</span></li>
-              <li><code>[B, 16, 960]</code><span>At positions to predict, swap the real ID for 1024, the extra MASK input symbol.</span></li>
+              <li><code>[B, 16, 960, (1)]</code><span>Input the tokenizer’s visual token IDs, each with 1,024 (0-1023) possible values.</span></li>
+              <li><code>[B, 16, 960]</code><span>At positions to predict, swap the real ID for 1024.<br><b>1024 is the extra MASK input symbol.</b></span></li>
               <li><code>[B, 16, 960, 512]</code><span>Embed the visible IDs and MASK symbols into 512-length vectors.</span></li>
               <li><code>[B, 15, 32]</code><span>Input the LAM’s selected codebook vectors: one action for each transition.</span></li>
               <li><code>[B, 15, 512]</code><span>Apply a linear layer to project each action vector to the dynamics width.</span></li>
@@ -867,7 +867,7 @@
               <li><code>[B, 16, 960, 512]</code><span>Add spatial and temporal positions.</span></li>
               <li><code>[B, 16, 960, 512]</code><span>Pass the combined tensor through 8 ST-transformer blocks.</span></li>
               <li><code>[B, 16, 960, 512]</code><span>Apply layer normalization.</span></li>
-              <li><code>[B, 16, 960, 1,024]</code><span>A linear output head creates logits over the 1,024 visual codebook IDs at each patch position.</span></li>
+              <li><code>[B, 16, 960, 1024]</code><span>A linear output head creates logits over the 1,024 visual codebook IDs at each patch position.<br><b>"What's the probability that a patch appears at this location?"</b><br>→ Visual codebooks store "appearance"</span></li>
             </ol>
             <blockquote class="article-aside"><p>
               Frame 0 has no incoming action. MASK is an input symbol, not an
@@ -886,7 +886,7 @@
             <ol class="tensor-steps" aria-label="Dynamics training transformations">
               <li><code>[B, 16, 960]</code><span>Save the tokenizer’s real IDs as targets, and make a mask of the positions to hide.</span></li>
               <li><code>[B, 16, 960]</code><span>Swap only hidden input IDs for 1024, so the model genuinely cannot see their answers.</span></li>
-              <li><code>[B, 16, 960, 1,024]</code><span>Predict scores for all 1,024 visual IDs at every position.</span></li>
+              <li><code>[B, 16, 960, 1024]</code><span>Predict scores for all 1,024 visual IDs at every position.</span></li>
               <li><code>scalar</code><span>Compute cross-entropy against the real IDs only at hidden positions; update only dynamics-model weights.</span></li>
             </ol>
             <blockquote class="article-aside"><p>
@@ -946,11 +946,11 @@
             <div class="tensor-key" aria-hidden="true"><span>Tensor shape</span><span>Transformation</span></div>
             <ol class="tensor-steps" aria-label="Play-time frame generation">
               <li><code>[B, 960]</code><span>Start the new frame with all visual positions hidden (B = 1 for the demo).</span></li>
-              <li><code>[B, 960, 1,024]</code><span>Run dynamics with the selected action vector to score all visual IDs at each hidden position.</span></li>
+              <li><code>[B, 960, 1024]</code><span>Run dynamics with the selected action vector to score all visual IDs at each hidden position.</span></li>
               <li><code>[B, 960]</code><span>Sample candidate IDs, keep the most confident, and re-mask the rest.</span></li>
               <li><code>[B, 960]</code><span>Repeat for three passes; the cosine schedule leaves roughly 129 fixed after pass 1, 480 after pass 2, and all 960 after pass 3.</span></li>
               <li><code>[B, 960, 32]</code><span>Look the final IDs up in the <em>tokenizer’s</em> visual codebook.</span></li>
-              <li><code>[B, 96, 160, 3]</code><span>Pass those vectors to the tokenizer decoder to compute a future frame.</span></li>
+              <li><code>[B, 96, 160, 3]</code><span>Pass those vectors to the <b>tokenizer decoder <br></b>(the end of the VQ-VAE at the very beginning of the article!) to compute a future frame.</span></li>
             </ol>
             <p>
               The generated visual IDs become context for the next key press.
@@ -1230,6 +1230,7 @@
         </article>
       </main>
     </div>
+
 
 
 
