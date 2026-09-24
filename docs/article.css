@@ -115,6 +115,14 @@ td:not(:first-child), thead th:not(:first-child) { text-align: right; }
 .separate-evaluation th, .separate-evaluation td { border-top: 2px solid var(--rule); }
 .technical-note { font: 13px/1.75 var(--sans); color: var(--secondary); margin: 28px 0; }
 .technical-note strong { color: var(--ink); }
+.tensor-steps { list-style: none; margin: 22px 0 30px; padding: 0; border-top: 1px solid var(--rule); font: 14px/1.6 var(--sans); }
+.tensor-steps li { display: grid; grid-template-columns: minmax(145px, 34%) minmax(0, 1fr); gap: 22px; margin: 0; padding: 13px 0; border-bottom: 1px solid var(--soft-rule); align-items: start; }
+.tensor-steps code { width: fit-content; font-size: 12px; white-space: normal; overflow-wrap: anywhere; }
+.tensor-steps li > span { min-width: 0; }
+.tensor-key { display: grid; grid-template-columns: minmax(145px, 34%) minmax(0, 1fr); gap: 22px; margin: 24px 0 -22px; font: 600 11px/1.5 var(--sans); color: var(--secondary); text-transform: uppercase; letter-spacing: .045em; }
+.article-aside { margin: 24px 0 30px; padding: 3px 0 3px 18px; border-left: 1px solid var(--accent); color: var(--secondary); font: 15px/1.7 var(--sans); }
+.article-aside p { margin: 0; }
+.article-aside code { font-size: .84em; }
 .figure-details { margin: 26px 0; }
 .figure-details summary { padding: 14px 0; cursor: pointer; color: var(--accent); font: 12px/1.7 var(--sans); }
 .figure-details[open] { padding-bottom: 14px; }
@@ -163,6 +171,7 @@ td:not(:first-child), thead th:not(:first-child) { text-align: right; }
   .chart-labels, .chart-values { font-size: 17px; }
   .table-scroll table { min-width: 420px; }
   .results-figure table { min-width: 550px; }
+  .tensor-steps li, .tensor-key { grid-template-columns: minmax(120px, 34%) minmax(0, 1fr); gap: 15px; }
 }
 @media (max-width: 600px) {
   .chart-labels, .chart-values { font-size: 24px; }
@@ -175,6 +184,8 @@ td:not(:first-child), thead th:not(:first-child) { text-align: right; }
   .article-links { gap: 21px; }
   .equation { font-size: 17px; gap: 6px; }
   .chart-labels, .chart-values { font-size: 32px; }
+  .tensor-steps li, .tensor-key { grid-template-columns: minmax(104px, 36%) minmax(0, 1fr); gap: 12px; }
+  .tensor-steps { font-size: 13px; }
 }
 @media (prefers-reduced-motion: reduce) {
   :root { scroll-behavior: auto; }
